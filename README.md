@@ -27,7 +27,3 @@ The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
 Stay tuned, as we will be releasing easy installation scripts for the following tools:
 - minio
 - keycloak
-
-
-* Key Considerations:
-   - In order for the cicd cluster to deploy to the apps cluster, the apps cluster's "additional" security group must be modified to add the cicd cluster's node security group as an inbound rule.
