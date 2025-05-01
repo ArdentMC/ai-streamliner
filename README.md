@@ -1,23 +1,33 @@
-# Apps Cluster Creation Process
-
-## Terraform Apply Instructions
-1. Initialize Terraform in your project directory: `terraform init`
-2. Apply Terraform `terraform apply`
-
-# Kubeflow Deployment
+# AI-Streamliner
 
 ## Standard Deployment Process
-1. Apply Kubernetes resources with automatic retries:
+1. To deploy all AI-Streamliner resources in a single command:
    ```bash
-   cd kubeflow/overlays/
+   make deploy-all
+   ```
 
-   while ! kustomize build example | kubectl apply --server-side --force-conflicts -f -; do echo "Retrying to apply resources"; sleep 20; done
+2. If problems arise, uninstall and retry the `make deploy-all` command.
+   ```bash
+   make tear-down-all
+   ```
 
+## Stand-alone Tool Deployment
+1. You can install a stand-alone tool using the following template:
+   ```bash
+   make deploy-<TOOL>
+   ```
+The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
 
-2. If problems arise after two loops delete the following resources and retry the apply command.
-    ```bash
-    kubectl delete validatingwebhookconfiguration istio-validator-istio-system
-    kubectl delete mutatingwebhookconfiguration istio-sidecar-injector
+2. You can uninstall retry any installation as well.
+   ```bash
+   make tear-down-<TOOL>
+   ```
+
+## Timeline
+Stay tuned, as we will be releasing easy installation scripts for the following tools:
+- minio
+- keycloak
+
 
 * Key Considerations:
    - In order for the cicd cluster to deploy to the apps cluster, the apps cluster's "additional" security group must be modified to add the cicd cluster's node security group as an inbound rule.
