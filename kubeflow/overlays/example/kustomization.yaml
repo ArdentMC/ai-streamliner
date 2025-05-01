@@ -1,0 +1,106 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+sortOptions:
+  order: legacy
+  legacySortOptions:
+    orderFirst:
+    - Namespace
+    - ResourceQuota
+    - StorageClass
+    - CustomResourceDefinition
+    - MutatingWebhookConfiguration
+    - ServiceAccount
+    - PodSecurityPolicy
+    - NetworkPolicy
+    - Role
+    - ClusterRole
+    - RoleBinding
+    - ClusterRoleBinding
+    - ConfigMap
+    - Secret
+    - Endpoints
+    - Service
+    - LimitRange
+    - PriorityClass
+    - PersistentVolume
+    - PersistentVolumeClaim
+    - Deployment
+    - StatefulSet
+    - CronJob
+    - PodDisruptionBudget
+    orderLast:
+    - ValidatingWebhookConfiguration
+
+resources:
+- github.com/kubeflow/manifests/common/cert-manager/base?ref=v1.10.0
+- github.com/kubeflow/manifests/common/cert-manager/kubeflow-issuer/base?ref=v1.10.0
+# Istio
+- github.com/kubeflow/manifests/common/istio-1-24/istio-crds/base?ref=v1.10.0
+- github.com/kubeflow/manifests/common/istio-1-24/istio-namespace/base?ref=v1.10.0
+- github.com/kubeflow/manifests/common/istio-1-24/istio-install/overlays/oauth2-proxy?ref=v1.10.0
+# oauth2-proxy
+- github.com/kubeflow/manifests/common/oauth2-proxy/overlays/m2m-dex-and-eks?ref=v1.10.0
+# Dex
+- github.com/kubeflow/manifests/common/dex/overlays/oauth2-proxy?ref=v1.10.0
+# KNative
+- github.com/kubeflow/manifests/common/knative/knative-serving/overlays/gateways?ref=v1.10.0
+- github.com/kubeflow/manifests/common/istio-1-24/cluster-local-gateway/base?ref=v1.10.0
+# Kubeflow namespace
+- github.com/kubeflow/manifests/common/kubeflow-namespace/base?ref=v1.10.0
+# NetworkPolicies
+- github.com/kubeflow/manifests/common/networkpolicies/base?ref=v1.10.0
+# Kubeflow Roles
+- github.com/kubeflow/manifests/common/kubeflow-roles/base?ref=v1.10.0
+# Kubeflow Istio Resources
+- github.com/kubeflow/manifests/common/istio-1-24/kubeflow-istio-resources/base?ref=v1.10.0
+# Kubeflow Pipelines
+- github.com/kubeflow/manifests/apps/pipeline/upstream/env/cert-manager/platform-agnostic-multi-user?ref=v1.10.0
+# Katib
+- github.com/kubeflow/manifests/apps/katib/upstream/installs/katib-with-kubeflow?ref=v1.10.0
+# Central Dashboard
+- github.com/kubeflow/manifests/apps/centraldashboard/overlays/oauth2-proxy?ref=v1.10.0
+# Admission Webhook
+- github.com/kubeflow/manifests/apps/admission-webhook/upstream/overlays/cert-manager?ref=v1.10.0
+# Jupyter Web App
+- github.com/kubeflow/manifests/apps/jupyter/jupyter-web-app/upstream/overlays/istio?ref=v1.10.0
+# Notebook Controller
+- github.com/kubeflow/manifests/apps/jupyter/notebook-controller/upstream/overlays/kubeflow?ref=v1.10.0
+# Profiles + KFAM
+- github.com/kubeflow/manifests/apps/profiles/upstream/overlays/kubeflow?ref=v1.10.0
+# PVC Viewer
+- github.com/kubeflow/manifests/apps/pvcviewer-controller/upstream/base?ref=v1.10.0
+# Volumes Web App
+- github.com/kubeflow/manifests/apps/volumes-web-app/upstream/overlays/istio?ref=v1.10.0
+# Tensorboards Controller
+- github.com/kubeflow/manifests/apps/tensorboard/tensorboard-controller/upstream/overlays/kubeflow?ref=v1.10.0
+# Tensorboard Web App
+- github.com/kubeflow/manifests/apps/tensorboard/tensorboards-web-app/upstream/overlays/istio?ref=v1.10.0
+# Training Operator
+- github.com/kubeflow/manifests/apps/training-operator/upstream/overlays/kubeflow?ref=v1.10.0
+# User namespace
+- github.com/kubeflow/manifests/common/user-namespace/base?ref=v1.10.0
+# KServe
+- github.com/kubeflow/manifests/apps/kserve/kserve?ref=v1.10.0
+- github.com/kubeflow/manifests/apps/kserve/models-web-app/overlays/kubeflow?ref=v1.10.0
+# Custom
+- ingress.yaml
+
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/jwtRules/0/issuer
+      value: https://oidc.eks.us-east-1.amazonaws.com/id/6A2072978764F7DD9729F8CA164C9CF5
+  target:
+    group: security.istio.io
+    version: v1beta1
+    kind: RequestAuthentication
+    name: m2m-token-issuer
+    namespace: istio-system
+
+- patch: |-
+    - op: replace
+      path: /spec/trafficPolicy/tls/mode
+      value: DISABLE
+  target:
+    kind: DestinationRule
