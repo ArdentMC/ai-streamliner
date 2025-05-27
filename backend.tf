@@ -1,21 +1,16 @@
 terraform {
   backend "s3" {
-    bucket         = "ardent-aigs-dev-tfstate-bucket"
-    key            = "aws/dev/apps/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "ardent-aigs-dev-tfstate-locks"
+    bucket         = var.tfstate_bucket_name
+    key            = var.tfstate_key
+    region         = var.tfstate_region
+    dynamodb_table = var.tfstate_lock_table
     encrypt        = true
   }
 
   required_providers {
     keycloak = {
-      source = "keycloak/keycloak"
+      source  = "keycloak/keycloak"
       version = "5.1.1"
-    }
-    
-    minio = {
-      source  = "aminueza/minio"
-      version = "3.3.0"
     }
   }
 }
