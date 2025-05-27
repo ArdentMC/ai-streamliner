@@ -1,12 +1,25 @@
-data "terraform_remote_state" "vpc" {
-  backend = "s3"
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 5.0"
 
-  config = {
-    bucket         = "ardent-aigs-dev-tfstate-bucket"
-    key            = "aws/dev/shared/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "ardent-aigs-dev-tfstate-locks"
-    encrypt        = true
+  name = "${var.project}-${var.environment}-vpc"
+  cidr = var.vpc_cidr
+
+  azs             = var.availability_zones
+  private_subnets = ["10.4.1.0/24", "10.4.2.0/24"]
+  public_subnets  = ["10.4.101.0/24", "10.4.102.0/24"]
+
+  enable_nat_gateway = true
+  single_nat_gateway = true
+
+  public_subnet_tags = {
+    "kubernetes.io/role/elb"                         = 1
+    "kubernetes.io/cluster/${var.project}-${var.environment}-eks" = "shared"
+  }
+
+  private_subnet_tags = {
+    "kubernetes.io/role/internal-elb"                = 1
+    "kubernetes.io/cluster/${var.project}-${var.environment}-eks" = "shared"
   }
 }
 
@@ -14,34 +27,34 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.0"
 
-  cluster_name    = "aigs-dev-apps-eks"
-  cluster_version = "1.31"
+  cluster_name    = var.eks_cluster_name
+  cluster_version = var.eks_cluster_version
 
-  vpc_id     = data.terraform_remote_state.vpc.outputs.vpc_id
-  subnet_ids = data.terraform_remote_state.vpc.outputs.private_subnets
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.private_subnets
 
   # Managed Node Group Configuration
   eks_managed_node_groups = {
     cicd_nodes = {
-      min_size     = 2
-      max_size     = 4
-      desired_size = 2
+      min_size     = var.cicd_nodes_min_size
+      max_size     = var.cicd_nodes_max_size
+      desired_size = var.cicd_nodes_desired_size
 
-      instance_types = ["t3.large"] # Default instance type
-      capacity_type  = "ON_DEMAND"  # Can switch to SPOT for cost savings
-      disk_size      = 20           # GiB for each node
+      instance_types = var.cicd_nodes_instance_types
+      capacity_type  = var.cicd_nodes_capacity_type
+      disk_size      = var.cicd_nodes_disk_size
     }
   }
   tags = {
     "k8s.io/cluster-autoscaler/enabled"           = "true"
-    "k8s.io/cluster-autoscaler/aigs-dev-apps-eks" = "owned"
+    "k8s.io/cluster-autoscaler/${var.eks_cluster_name}" = "owned"
   }
 
   # Allow cluster access from Terraform
   enable_cluster_creator_admin_permissions = true
 
-  cluster_endpoint_public_access  = true
-  cluster_endpoint_private_access = true # Optional, for internal access too
+  cluster_endpoint_public_access  = var.cluster_endpoint_public_access
+  cluster_endpoint_private_access = var.cluster_endpoint_private_access
 }
 
 module "eks_blueprints_addons" {
@@ -110,8 +123,6 @@ provider "kubernetes" {
     args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
   }
 }
-
-# gp3 StorageClass
 resource "kubernetes_storage_class" "gp3" {
   metadata {
     name = "gp3"
@@ -139,225 +150,6 @@ provider "helm" {
       args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
     }
   }
-}
-
-resource "random_password" "apps_postgres_password" {
-  length           = 16
-  special          = false
-}
-
-resource "kubernetes_namespace" "postgres" {
-  metadata {
-    name = "postgres"
-  }
-}
-
-resource "kubernetes_secret" "apps_postgres_credentials" {
-  metadata {
-    name      = "postgres-credentials"
-    namespace = "postgres"
-  }
-
-  data = {
-    password = random_password.apps_postgres_password.result
-  }
-
-  type = "Opaque"
-  depends_on = [kubernetes_namespace.postgres]
-}
-
-resource "helm_release" "postgresql" {
-  name       = "postgres"
-  repository = "https://charts.bitnami.com/bitnami"
-  chart      = "postgresql"
-  version    = "15.4.0"
-
-  namespace        = "postgres"
-  create_namespace = false
-  values = [
-    <<-EOT
-    fullnameOverride: "postgres"
-    global:
-      postgresql:
-        auth:
-          username: "postgresadmin"
-          existingSecret: "postgres-credentials"
-          secretKeys:
-            adminPasswordKey: "password"
-          database: "postgresdb"
-    persistence:
-      enabled: true
-      storageClass: "gp3"
-      size: 10Gi
-    EOT
-  ]
-
-  depends_on = [kubernetes_secret.apps_postgres_credentials]
-}
-resource "kubernetes_namespace" "aidetector" {
-  metadata {
-    name = "aidetector"
-  }
-}
-
-resource "kubernetes_secret" "apps_postgres_credentials_aidetector" {
-  metadata {
-    name      = "postgres-credentials"
-    namespace = "aidetector"
-  }
-
-  data = {
-    password = random_password.apps_postgres_password.result
-  }
-
-  type = "Opaque"
-  depends_on = [kubernetes_namespace.aidetector]
-}
-
-module "minio" {
-  source = "./minio"
-
-  namespace             = kubernetes_namespace.aidetector.metadata[0].name
-  namespace_dependency  = kubernetes_namespace.aidetector
-  storage_size          = "50Gi"
-  storage_class_name    = "gp3"
-  password_length       = 16
-  password_special_chars = false
-  root_user             = "minio-admin"
-  replicas              = 1
-  image                 = "quay.io/minio/minio:latest"
-  resource_requests     = {
-    memory = "2Gi"
-    cpu    = "500m"
-  }
-  resource_limits       = {
-    memory = "4Gi"
-    cpu    = "2"
-  }
-  node_instance_types   = ["t3.xlarge", "t3.2xlarge"]
-  ingress_host          = "dev-minio.aivalidator.ardentcloud.com"
-  ingress_annotations   = {
-    "kubernetes.io/ingress.class"          = "alb"
-    "alb.ingress.kubernetes.io/scheme"    = "internet-facing"
-    "alb.ingress.kubernetes.io/target-type" = "ip"
-    "alb.ingress.kubernetes.io/listen-ports" = "[{\"HTTPS\":443}]"
-    "alb.ingress.kubernetes.io/certificate-arn" = "arn:aws:acm:us-east-1:905418165254:certificate/27e9877d-8ab1-4398-9a31-a859ccf31fe4"
-    "alb.ingress.kubernetes.io/ssl-redirect" = "443"
-  }
-
-  bucket_name   = "ardent-aidetector"
-  bucket_acl    = "public"
-  object_uploads = {
-    env = {
-      object_name  = "configs/.env"
-      source       = "./minio/initial-file-uploads/.env"
-      content_type = "text/plain"
-    }
-    ai_sites_supp = {
-      object_name  = "data/ai_sites_supp.csv"
-      source       = "./minio/initial-file-uploads/ai_sites_supp.csv"
-      content_type = "text/csv"
-    }
-    ai_sites = {
-      object_name  = "data/ai_sites.csv"
-      source       = "./minio/initial-file-uploads/ai_sites.csv"
-      content_type = "text/csv"
-    }
-    huggingface_models = {
-      object_name  = "data/huggingface-models.csv"
-      source       = "./minio/initial-file-uploads/huggingface-models.csv"
-      content_type = "text/csv"
-    }
-    kaggle_models = {
-      object_name  = "data/kaggle-models.csv"
-      source       = "./minio/initial-file-uploads/kaggle-models.csv"
-      content_type = "text/csv"
-    }
-    paperswithcode_models = {
-      object_name  = "data/paperswithcode-models.csv"
-      source       = "./minio/initial-file-uploads/paperswithcode-models.csv"
-      content_type = "text/csv"
-    }
-    sample_report = {
-      object_name  = "reports/report_1FLH8D_2024-07-01_041441.html"
-      source       = "./minio/initial-file-uploads/report_1FLH8D_2024-07-01_041441.html"
-      content_type = "text/html"
-    }
-  }
-
-  minio_server = "dev-minio.aivalidator.ardentcloud.com"
-  minio_ssl    = true
-}
-
-resource "helm_release" "aidetector" {
-  name       = "aidetector"
-  repository = "oci://905418165254.dkr.ecr.us-east-1.amazonaws.com"
-  chart      = "aidetector-helm"
-  version    = "0.1.24"
-
-  namespace        = "aidetector"
-  create_namespace = false
-  recreate_pods    = true
-
-  values = [
-    <<-EOT
-      fullnameOverride: "aidetector"
-
-      env:
-        - name: "NODE_ENV"
-          value: "dev"
-        - name: "REACT_APP_AWS_BUCKET_ID"
-          value: "ardent-aidetector"
-        - name: "REACT_APP_API_URL"
-          value: "/api"
-        - name: "DB_USER"
-          value: "postgresadmin"
-        - name: "DB_HOST"
-          value: "postgres.postgres.svc.cluster.local"
-        - name: "DB_DATABASE"
-          value: "postgresdb"
-        - name: "DB_PASSWORD"
-          valueFrom:
-            secretKeyRef:
-              name: "postgres-credentials"
-              key: "password"
-        - name: "DB_PORT"
-          value: "5432"
-        - name: "REACT_APP_MINIO_ENDPOINT"
-          value: "https://dev-minio.aivalidator.ardentcloud.com"
-        - name: "REACT_APP_MINIO_PORT"
-          value: "9000"
-        - name: "REACT_APP_MINIO_ACCESS_KEY"
-          valueFrom:
-            secretKeyRef:
-              name: "minio-creds"
-              key: "root-user"
-        - name: "REACT_APP_MINIO_SECRET_KEY"
-          valueFrom:
-            secretKeyRef:
-              name: "minio-creds"
-              key: "root-password"
-    EOT
-  ]
-
-  depends_on = [module.minio, kubernetes_secret.aidetector_client_secret]
-}
-
-output "postgres_password" {
-  value     = random_password.apps_postgres_password.result
-  sensitive = true
-  description = "PostgreSQL admin password"
-}
-
-output "minio_root_user" {
-  value       = module.minio.minio_root_user
-  description = "The MinIO root user"
-}
-
-output "minio_root_password" {
-  value       = module.minio.minio_root_password
-  description = "The MinIO root password"
-  sensitive   = true
 }
 
 variable "namespace" {
@@ -414,10 +206,8 @@ resource "helm_release" "keycloak" {
       adminUser: ${var.admin_user}
       adminPassword: ${random_password.keycloak_admin_password.result}
 
-    # Add proxy configuration
     proxy: edge
 
-    # Database configuration
     postgresql:
       enabled: true
       auth:
@@ -429,7 +219,6 @@ resource "helm_release" "keycloak" {
         storageClass: "gp3"
         size: 8Gi
 
-    # Resource settings
     resources:
       requests:
         memory: "1Gi"
@@ -438,16 +227,13 @@ resource "helm_release" "keycloak" {
         memory: "2Gi"
         cpu: "1"
 
-    # Startup probes
     startupProbe:
       enabled: true
       initialDelaySeconds: 60
 
-    # Service configuration
     service:
       type: ClusterIP
 
-    # Ingress configuration
     ingress:
       enabled: true
       ingressClassName: alb
@@ -456,23 +242,17 @@ resource "helm_release" "keycloak" {
         alb.ingress.kubernetes.io/scheme: internet-facing
         alb.ingress.kubernetes.io/target-type: ip
         alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
-        alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:905418165254:certificate/27e9877d-8ab1-4398-9a31-a859ccf31fe4"
+        alb.ingress.kubernetes.io/certificate-arn: ${var.keycloak_certificate_arn}
         alb.ingress.kubernetes.io/ssl-redirect: '443'
         alb.ingress.kubernetes.io/healthcheck-path: /auth/realms/master
-      hostname: dev-keycloak.aivalidator.ardentcloud.com
+      hostname: ${var.keycloak_hostname}
       path: /
       pathType: Prefix
       tls: true
 
-    # Persistence for Keycloak
-    persistence:
-      enabled: true
-      storageClass: "gp3"
-
-    # Keycloak configuration with proper import setup
     keycloak:
       env:
-        KEYCLOAK_FRONTEND_URL: "https://dev-keycloak.aivalidator.ardentcloud.com/auth"
+        KEYCLOAK_FRONTEND_URL: ${var.keycloak_frontend_url}
         PROXY_ADDRESS_FORWARDING: "true"
     EOT
   ]
@@ -494,247 +274,6 @@ provider "keycloak" {
   client_id     = "admin-cli"
   username      = "admin"
   password      = random_password.keycloak_admin_password.result
-  url           = "https://dev-keycloak.aivalidator.ardentcloud.com"
+  url           = var.keycloak_url
   initial_login = true
-}
-
-data "keycloak_openid_client" "aidetector" {
-  realm_id  = "ai-guardian-suite"
-  client_id = "aidetector"
-}
-
-resource "kubernetes_secret" "aidetector_client_secret" {
-  metadata {
-    name      = "aidetector-client-secret"
-    namespace = "aidetector"
-  }
-  data = {
-    "clientId"     = "aidetector"
-    "clientSecret" = "${data.keycloak_openid_client.aidetector.client_secret}"
-  }
-
-  type = "Opaque"
-}
-
-resource "kubernetes_ingress_v1" "aidetector_ingress" {
-  metadata {
-    name      = "aidetector-ingress"
-    namespace = "aidetector"
-    annotations = {
-      "alb.ingress.kubernetes.io/scheme"          = "internet-facing"
-      "alb.ingress.kubernetes.io/target-type"     = "ip"
-      "alb.ingress.kubernetes.io/listen-ports"    = "[{\"HTTPS\":443}]"
-      "alb.ingress.kubernetes.io/certificate-arn" = "arn:aws:acm:us-east-1:905418165254:certificate/27e9877d-8ab1-4398-9a31-a859ccf31fe4"
-      "alb.ingress.kubernetes.io/ssl-redirect"    = "443"
-      "alb.ingress.kubernetes.io/auth-type"       = "oidc"
-      "alb.ingress.kubernetes.io/auth-idp-oidc" = jsonencode({
-        "Issuer"                = "https://dev-keycloak.aivalidator.ardentcloud.com/realms/ai-guardian-suite"
-        "AuthorizationEndpoint" = "https://dev-keycloak.aivalidator.ardentcloud.com/realms/ai-guardian-suite/protocol/openid-connect/auth"
-        "TokenEndpoint"         = "https://dev-keycloak.aivalidator.ardentcloud.com/realms/ai-guardian-suite/protocol/openid-connect/token"
-        "UserInfoEndpoint"      = "https://dev-keycloak.aivalidator.ardentcloud.com/realms/ai-guardian-suite/protocol/openid-connect/userinfo"
-        "SecretName"            = "aidetector-client-secret"
-      })
-      "alb.ingress.kubernetes.io/auth-on-unauthenticated-request" = "authenticate"
-      "alb.ingress.kubernetes.io/auth-session-cookie"             = "AWSELBAuthSessionCookie"
-      "alb.ingress.kubernetes.io/auth-session-timeout"            = "300"
-    }
-  }
-
-  spec {
-    ingress_class_name = "alb"
-    rule {
-      host = "dev-aidetector.aivalidator.ardentcloud.com"
-      http {
-        path {
-          path      = "/api"
-          path_type = "Prefix"
-          backend {
-            service {
-              name = "aidetector-api"
-              port {
-                number = 3001
-              }
-            }
-          }
-        }
-        path {
-          path      = "/"
-          path_type = "Prefix"
-          backend {
-            service {
-              name = "aidetector-ui"
-              port {
-                number = 3000
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  depends_on = [helm_release.aidetector, kubernetes_secret.aidetector_client_secret]
-}
-
-resource "kubernetes_role" "alb_controller_secrets_reader" {
-  metadata {
-    name      = "alb-controller-secrets-reader"
-    namespace = "aidetector"
-  }
-
-  rule {
-    api_groups = [""]
-    resources  = ["secrets"]
-    verbs      = ["get", "list", "watch"]
-  }
-}
-
-resource "kubernetes_role_binding" "alb_controller_secrets_reader" {
-  metadata {
-    name      = "alb-controller-secrets-reader"
-    namespace = "aidetector"
-  }
-
-  role_ref {
-    api_group = "rbac.authorization.k8s.io"
-    kind      = "Role"
-    name      = kubernetes_role.alb_controller_secrets_reader.metadata[0].name
-  }
-
-  subject {
-    kind      = "ServiceAccount"
-    name      = "aws-load-balancer-controller-sa"
-    namespace = "kube-system"
-  }
-}
-
-resource "helm_release" "airegistrar" {
-  name       = "airegistrar"
-  repository = "oci://905418165254.dkr.ecr.us-east-1.amazonaws.com"
-  chart      = "airegistrar-helm"
-  version    = "0.1.3"
-
-  namespace        = "airegistrar"
-  create_namespace = true
-  recreate_pods    = true
-
-  values = [
-    <<-EOT
-      fullnameOverride: "airegistrar"
-
-      env:
-        - name: "DATABASE_URL"
-          value: "postgresql://postgresadmin:${random_password.apps_postgres_password.result}@postgres.postgres.svc.cluster.local:5432/postgresdb"
-        - name: "REACT_APP_API_URL"
-          value: "/api"
-    EOT
-  ]
-}
-
-data "keycloak_openid_client" "airegistrar" {
-  realm_id  = "ai-guardian-suite"
-  client_id = "airegistrar"
-}
-
-resource "kubernetes_secret" "airegistrar_client_secret" {
-  metadata {
-    name      = "airegistrar-client-secret"
-    namespace = "airegistrar"
-  }
-  data = {
-    "clientId"     = "airegistrar"
-    "clientSecret" = "${data.keycloak_openid_client.airegistrar.client_secret}"
-  }
-
-  type = "Opaque"
-}
-
-resource "kubernetes_ingress_v1" "airegistrar_ingress" {
-  metadata {
-    name      = "airegistrar-ingress"
-    namespace = "airegistrar"
-    annotations = {
-      "alb.ingress.kubernetes.io/scheme"          = "internet-facing"
-      "alb.ingress.kubernetes.io/target-type"     = "ip"
-      "alb.ingress.kubernetes.io/listen-ports"    = "[{\"HTTPS\":443}]"
-      "alb.ingress.kubernetes.io/certificate-arn" = "arn:aws:acm:us-east-1:905418165254:certificate/27e9877d-8ab1-4398-9a31-a859ccf31fe4"
-      "alb.ingress.kubernetes.io/ssl-redirect"    = "443"
-      "alb.ingress.kubernetes.io/auth-type"       = "oidc"
-      "alb.ingress.kubernetes.io/auth-idp-oidc" = jsonencode({
-        "Issuer"                = "https://dev-keycloak.aivalidator.ardentcloud.com/realms/ai-guardian-suite"
-        "AuthorizationEndpoint" = "https://dev-keycloak.aivalidator.ardentcloud.com/realms/ai-guardian-suite/protocol/openid-connect/auth"
-        "TokenEndpoint"         = "https://dev-keycloak.aivalidator.ardentcloud.com/realms/ai-guardian-suite/protocol/openid-connect/token"
-        "UserInfoEndpoint"      = "https://dev-keycloak.aivalidator.ardentcloud.com/realms/ai-guardian-suite/protocol/openid-connect/userinfo"
-        "SecretName"            = "airegistrar-client-secret"
-      })
-      "alb.ingress.kubernetes.io/auth-on-unauthenticated-request" = "authenticate"
-      "alb.ingress.kubernetes.io/auth-session-cookie"             = "AWSELBAuthSessionCookie"
-      "alb.ingress.kubernetes.io/auth-session-timeout"            = "300"
-    }
-  }
-
-  spec {
-    ingress_class_name = "alb"
-    rule {
-      host = "dev-airegistrar.aivalidator.ardentcloud.com"
-      http {
-        path {
-          path      = "/api"
-          path_type = "Prefix"
-          backend {
-            service {
-              name = "airegistrar-api"
-              port {
-                number = 8000
-              }
-            }
-          }
-        }
-        path {
-          path      = "/"
-          path_type = "Prefix"
-          backend {
-            service {
-              name = "airegistrar-ui"
-              port {
-                number = 3002
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  depends_on = [kubernetes_secret.airegistrar_client_secret]
-}
-
-resource "kubernetes_role" "alb_controller_airegistrar_secrets_reader" {
-  metadata {
-    name      = "alb-controller-secrets-reader"
-    namespace = "airegistrar"
-  }
-
-  rule {
-    api_groups = [""]
-    resources  = ["secrets"]
-    verbs      = ["get", "list", "watch"]
-  }
-}
-
-resource "kubernetes_role_binding" "alb_controller_airegistrar_secrets_reader" {
-  metadata {
-    name      = "alb-controller-secrets-reader"
-    namespace = "airegistrar"
-  }
-
-  role_ref {
-    api_group = "rbac.authorization.k8s.io"
-    kind      = "Role"
-    name      = kubernetes_role.alb_controller_secrets_reader.metadata[0].name
-  }
-
-  subject {
-    kind      = "ServiceAccount"
-    name      = "aws-load-balancer-controller-sa"
-    namespace = "kube-system"
-  }
 }
