@@ -1,14 +1,22 @@
 # AI-Streamliner
 
+## Prerequisites
+Before getting started, ensure you have the following prerequisites installed:
+
+kind
+docker
+kubectl
+kustomize
+
 ## Standard Deployment Process
 1. To deploy all AI-Streamliner resources in a single command:
    ```bash
-   make deploy-all
+   make all
    ```
 
 2. If problems arise, uninstall and retry the `make deploy-all` command.
    ```bash
-   make tear-down-all
+   make destroy-all
    ```
 
 ## Stand-alone Tool Deployment
