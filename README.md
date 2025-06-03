@@ -7,6 +7,7 @@ kind
 docker
 kubectl
 kustomize
+helm
 
 ## Standard Deployment Process
 1. To deploy all AI-Streamliner resources in a single command:
@@ -22,14 +23,21 @@ kustomize
 ## Stand-alone Tool Deployment
 1. You can install a stand-alone tool using the following template:
    ```bash
-   make deploy-<TOOL>
+   make <TOOL>
    ```
 The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
 
 2. You can uninstall retry any installation as well.
    ```bash
-   make tear-down-<TOOL>
+   make delete-<TOOL>
    ```
+
+## Tool access
+1. You can access a tool using the following template:
+   ```bash
+   make access-<TOOL>
+   ```
+The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
 
 ## Timeline
 Stay tuned, as we will be releasing easy installation scripts for the following tools:

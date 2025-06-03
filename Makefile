@@ -8,7 +8,7 @@ cluster:
 destroy-cluster:
 	kind delete cluster --name=kubeflow
 
-install-kubeflow-one-by-one:
+kubeflow:
 	cd manifests && while ! kustomize build common/cert-manager/base | kubectl apply -f -; do echo "Retrying cert-manager/base..."; sleep 10; done
 	cd manifests && while ! kustomize build common/cert-manager/kubeflow-issuer/base | kubectl apply -f -; do echo "Retrying cert-manager/kubeflow-issuer/base..."; sleep 10; done
 	cd manifests && echo "Waiting for cert-manager to be ready ..."
@@ -49,9 +49,33 @@ install-kubeflow-one-by-one:
 	cd manifests && while ! kustomize build apps/training-operator/upstream/overlays/kubeflow | kubectl apply --server-side --force-conflicts -f -; do echo "Retrying training-operator/upstream/overlays/kubeflow..."; sleep 10; done
 	cd manifests && while ! kustomize build common/user-namespace/base | kubectl apply -f -; do echo "Retrying user-namespace/base..."; sleep 10; done
 
+make access-kubeflow:
+	kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80 \
+	&& echo "Visit http://localhost:8080 to use kubeflow"
+
+
+.PHONY: mlflow
+mlflow:
+	kubectl apply -f mlflow/mlflow-pv-pvc.yml
+	helm repo add community-charts https://community-charts.github.io/helm-charts
+	helm repo update
+	helm install streamliner community-charts/mlflow
+
+.PHONY: delete-mlflow
+delete-mlflow:
+	helm uninstall streamliner
+	kubectl delete -f mlflow/mlflow-pv-pvc.yml
+
+access-mlflow:
+	export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=mlflow,app.kubernetes.io/instance=streamliner" -o jsonpath="{.items[0].metadata.name}") \
+	&& export CONTAINER_PORT=$(kubectl get pod --namespace default $(POD_NAME) -o jsonpath="{.spec.containers[0].ports[0].containerPort}") \
+	&& echo "Visit http://127.0.0.1:8080 to use mlflow" \
+	&& kubectl --namespace default port-forward $(POD_NAME) 8080:$(CONTAINER_PORT)
+
 all:
 	$(MAKE) cluster
-	$(MAKE) install-kubeflow-one-by-one
+	$(MAKE) kubeflow
+	$(MAKE) mlflow
 
 destroy-all:
 	$(MAKE) destroy-cluster
