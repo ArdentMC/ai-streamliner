@@ -72,10 +72,24 @@ access-mlflow:
 	&& echo "Visit http://127.0.0.1:8080 to use mlflow" \
 	&& kubectl --namespace default port-forward $(POD_NAME) 8080:$(CONTAINER_PORT)
 
+.PHONY: aim
+aim:
+	# helm install streamliner -f aim/values.yml .
+	docker pull aimstack/aim:latest
+	kind load docker-image aimstack/aim:latest --name=kubeflow
+	kubectl apply -f aim/ns.yml
+	kubectl apply -f aim/service.yml
+	kubectl apply -f aim/deployment.yml
+
+access-aim:
+	kubectl port-forward -n aimstack svc/aimstack 8080:80 \
+	&& echo "Visit http://localhost:8080 to use aim"
+
 all:
 	$(MAKE) cluster
 	$(MAKE) kubeflow
 	$(MAKE) mlflow
+	$(MAKE) aim
 
 destroy-all:
 	$(MAKE) destroy-cluster
