@@ -1,9 +1,19 @@
 cluster:
-	kind create cluster --name=kubeflow --config=cluster.yml
-	kind get kubeconfig --name kubeflow > /tmp/kubeflow-config
-	export KUBECONFIG=/tmp/kubeflow-config
-	docker login
-	kubectl create secret generic regcred --from-file=.dockerconfigjson=$(HOME)/.docker/config.json --type=kubernetes.io/dockerconfigjson
+	@if ! kind get clusters | grep -q "^kubeflow$$"; then \
+		kind create cluster --name=kubeflow --config=cluster.yml; \
+		kind get kubeconfig --name kubeflow > /tmp/kubeflow-config; \
+		export KUBECONFIG=/tmp/kubeflow-config; \
+	else \
+		echo "Cluster 'kubeflow' already exists"; \
+	fi
+	@if ! kubectl get secret regcred >/dev/null 2>&1; then \
+		docker login; \
+		kubectl create secret generic regcred \
+			--from-file=.dockerconfigjson=$(HOME)/.docker/config.json \
+			--type=kubernetes.io/dockerconfigjson; \
+	else \
+		echo "Docker registry secret 'regcred' already exists"; \
+	fi
 
 destroy-cluster:
 	kind delete cluster --name=kubeflow
