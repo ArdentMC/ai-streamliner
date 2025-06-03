@@ -2,13 +2,13 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: aimstack
-  name: aimstack
-  namespace: aimstack
+    app: streamliner-aimstack
+  name: streamliner-aimstack
+  namespace: default
 spec:
   selector:
     matchLabels:
-      app: aimstack
+      app: streamliner-aimstack
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       labels:
-        app: aimstack
+        app: streamliner-aimstack
     spec:
       containers:
         - name: ui

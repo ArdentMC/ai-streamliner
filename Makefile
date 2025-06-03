@@ -59,37 +59,55 @@ mlflow:
 	kubectl apply -f mlflow/mlflow-pv-pvc.yml
 	helm repo add community-charts https://community-charts.github.io/helm-charts
 	helm repo update
-	helm install streamliner community-charts/mlflow
+	helm install streamliner-mlflow community-charts/mlflow
 
 .PHONY: delete-mlflow
 delete-mlflow:
-	helm uninstall streamliner
+	helm uninstall streamliner-mlflow
 	kubectl delete -f mlflow/mlflow-pv-pvc.yml
 
+.PHONY: access-mlflow
 access-mlflow:
-	export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=mlflow,app.kubernetes.io/instance=streamliner" -o jsonpath="{.items[0].metadata.name}") \
-	&& export CONTAINER_PORT=$(kubectl get pod --namespace default $(POD_NAME) -o jsonpath="{.spec.containers[0].ports[0].containerPort}") \
-	&& echo "Visit http://127.0.0.1:8080 to use mlflow" \
-	&& kubectl --namespace default port-forward $(POD_NAME) 8080:$(CONTAINER_PORT)
+	kubectl port-forward svc/streamliner-mlflow -n default 5000:5000 \
+	&& echo "Visit http://localhost:5000 to use mlflow"
 
 .PHONY: aim
 aim:
-	# helm install streamliner -f aim/values.yml .
 	docker pull aimstack/aim:latest
 	kind load docker-image aimstack/aim:latest --name=kubeflow
-	kubectl apply -f aim/ns.yml
-	kubectl apply -f aim/service.yml
-	kubectl apply -f aim/deployment.yml
+	kubectl apply -f aimstack/service.yml
+	kubectl apply -f aimstack/deployment.yml
+
+.PHONY: delete-aim
+delete-aim:
+	kubectl delete -f aimstack/deployment.yml
+	kubectl delete -f aimstack/service.yml
 
 access-aim:
-	kubectl port-forward -n aimstack svc/aimstack 8080:80 \
+	kubectl port-forward -n default svc/streamliner-aimstack 8080:80 \
 	&& echo "Visit http://localhost:8080 to use aim"
+
+.PHONY: lakefs
+lakefs:
+	helm repo add lakefs https://charts.lakefs.io
+	helm repo update
+	helm install streamliner-lakefs lakefs/lakefs
+
+.PHONY: delete-lakefs
+delete-lakefs:
+	helm uninstall streamliner-lakefs
+
+.PHONY: access-lakefs
+access-lakefs:
+	kubectl port-forward -n default svc/streamliner-lakefs 8000:80 \
+	&& echo "Visit http://localhost:8000/setup to use aim"
 
 all:
 	$(MAKE) cluster
 	$(MAKE) kubeflow
 	$(MAKE) mlflow
 	$(MAKE) aim
+	$(MAKE) lakefs
 
 destroy-all:
 	$(MAKE) destroy-cluster
