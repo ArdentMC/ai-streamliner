@@ -83,6 +83,7 @@ delete-aim:
 	kubectl delete -f aimstack/deployment.yml
 	kubectl delete -f aimstack/service.yml
 
+.PHONY: access-aim
 access-aim:
 	kubectl port-forward -n default svc/streamliner-aimstack 8080:80 \
 	&& echo "Visit http://localhost:8080 to use aim"
