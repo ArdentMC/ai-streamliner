@@ -19,6 +19,9 @@ destroy-cluster:
 	kind delete cluster --name=kubeflow
 
 kubeflow:
+	rm -rf manifests
+	git clone https://github.com/kubeflow/manifests.git
+	cd manifests && git fetch origin && git checkout -b v1.10-branch origin/v1.10-branch
 	cd manifests && while ! kustomize build common/cert-manager/base | kubectl apply -f -; do echo "Retrying cert-manager/base..."; sleep 10; done
 	cd manifests && while ! kustomize build common/cert-manager/kubeflow-issuer/base | kubectl apply -f -; do echo "Retrying cert-manager/kubeflow-issuer/base..."; sleep 10; done
 	cd manifests && echo "Waiting for cert-manager to be ready ..."
