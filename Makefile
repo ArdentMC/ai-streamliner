@@ -47,7 +47,7 @@ kubeflow:
 	cd manifests && while ! kustomize build common/kubeflow-roles/base | kubectl apply -f -; do echo "Retrying kubeflow-roles/base..."; sleep 10; done
 	cd manifests && while ! kustomize build common/istio-1-24/kubeflow-istio-resources/base | kubectl apply -f -; do echo "Retrying kubeflow-istio-resources/base..."; sleep 10; done
 	cd manifests && while ! kustomize build apps/pipeline/upstream/env/cert-manager/platform-agnostic-multi-user | kubectl apply -f -; do echo "Retrying pipeline/env/cert-manager/platform-agnostic-multi-user..."; sleep 10; done
-	cd manifests && while ! kustomize build apps/kserve/kserve | kubectl apply --server-side --force-conflicts -f -; do echo "Retrying kserve/kserve..."; sleep 10; done
+	cd manifests && while ! kustomize build apps/kserve/kserve | kubectl apply --server-side --force-conflicts -f -; do echo "Retrying kserve/kserve... (This one takes several minutes)"; sleep 10; done
 	cd manifests && while ! kustomize build apps/kserve/models-web-app/overlays/kubeflow | kubectl apply -f -; do echo "Retrying models-web-app/overlays/kubeflow..."; sleep 10; done
 	cd manifests && while ! kustomize build apps/katib/upstream/installs/katib-with-kubeflow | kubectl apply -f -; do echo "Retrying katib/upstream/installs/katib-with-kubeflow..."; sleep 10; done
 	cd manifests && while ! kustomize build apps/centraldashboard/overlays/oauth2-proxy | kubectl apply -f -; do echo "Retrying centraldashboard/overlays/oauth2-proxy..."; sleep 10; done
@@ -61,6 +61,7 @@ kubeflow:
 	cd manifests && while ! kustomize build apps/tensorboard/tensorboard-controller/upstream/overlays/kubeflow | kubectl apply -f -; do echo "Retrying tensorboard-controller/upstream/overlays/kubeflow..."; sleep 10; done
 	cd manifests && while ! kustomize build apps/training-operator/upstream/overlays/kubeflow | kubectl apply --server-side --force-conflicts -f -; do echo "Retrying training-operator/upstream/overlays/kubeflow..."; sleep 10; done
 	cd manifests && while ! kustomize build common/user-namespace/base | kubectl apply -f -; do echo "Retrying user-namespace/base..."; sleep 10; done
+	rm -rf manifests
 
 make access-kubeflow:
 	kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80 \
@@ -69,10 +70,20 @@ make access-kubeflow:
 
 .PHONY: mlflow
 mlflow:
-	kubectl apply -f mlflow/mlflow-pv-pvc.yml
-	helm repo add community-charts https://community-charts.github.io/helm-charts
+	@if ! kubectl get pv mlflow-pv >/dev/null 2>&1; then \
+		kubectl apply -f mlflow/mlflow-pv-pvc.yml; \
+	else \
+		echo "MLflow PV/PVC already exists"; \
+	fi
+	@if ! helm repo list | grep -q "^community-charts"; then \
+		helm repo add community-charts https://community-charts.github.io/helm-charts; \
+	fi
 	helm repo update
-	helm install streamliner-mlflow community-charts/mlflow
+	@if ! helm list | grep -q "^streamliner-mlflow"; then \
+		helm install streamliner-mlflow community-charts/mlflow; \
+	else \
+		echo "MLflow helm release already exists"; \
+	fi
 
 .PHONY: delete-mlflow
 delete-mlflow:
@@ -88,8 +99,16 @@ access-mlflow:
 aim:
 	docker pull aimstack/aim:latest
 	kind load docker-image aimstack/aim:latest --name=kubeflow
-	kubectl apply -f aimstack/service.yml
-	kubectl apply -f aimstack/deployment.yml
+	@if ! kubectl get service streamliner-aimstack >/dev/null 2>&1; then \
+		kubectl apply -f aimstack/service.yml; \
+	else \
+		echo "AIM service already exists"; \
+	fi
+	@if ! kubectl get deployment streamliner-aimstack >/dev/null 2>&1; then \
+		kubectl apply -f aimstack/deployment.yml; \
+	else \
+		echo "AIM deployment already exists"; \
+	fi
 
 .PHONY: delete-aim
 delete-aim:
@@ -103,9 +122,15 @@ access-aim:
 
 .PHONY: lakefs
 lakefs:
-	helm repo add lakefs https://charts.lakefs.io
+	@if ! helm repo list | grep -q "^lakefs"; then \
+		helm repo add lakefs https://charts.lakefs.io; \
+	fi
 	helm repo update
-	helm install streamliner-lakefs lakefs/lakefs
+	@if ! helm list | grep -q "^streamliner-lakefs"; then \
+		helm install streamliner-lakefs lakefs/lakefs; \
+	else \
+		echo "LakeFS helm release already exists"; \
+	fi
 
 .PHONY: delete-lakefs
 delete-lakefs:
@@ -116,12 +141,12 @@ access-lakefs:
 	kubectl port-forward -n default svc/streamliner-lakefs 8000:80 \
 	&& echo "Visit http://localhost:8000/setup to use lakefs"
 
-all:
+streamliner:
 	$(MAKE) cluster
 	$(MAKE) kubeflow
 	$(MAKE) mlflow
 	$(MAKE) aim
 	$(MAKE) lakefs
 
-destroy-all:
+destroy-streamliner:
 	$(MAKE) destroy-cluster

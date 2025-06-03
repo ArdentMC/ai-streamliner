@@ -12,12 +12,12 @@ helm
 ## Standard Deployment Process
 1. To deploy all AI-Streamliner resources in a single command:
    ```bash
-   make all
+   make streamliner
    ```
 
-2. If problems arise, uninstall and retry the `make deploy-all` command.
+2. If problems arise, uninstall and retry the `make deploy-streamliner` command.
    ```bash
-   make destroy-all
+   make destroy-streamliner
    ```
 
 ## Stand-alone Tool Deployment
@@ -43,3 +43,14 @@ The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
 Stay tuned, as we will be releasing easy installation scripts for the following tools:
 - minio
 - keycloak
+
+
+### Useful Resources:
+- mlflow
+   - https://www.atlantic.net/gpu-server-hosting/how-to-deploy-mlflow-on-the-kubernetes-cluster/
+- aimstack
+   - https://docs.aimhub.io/quick-start/installation/k8s-helm-chart
+   - https://github.com/geekbass/aimstack/tree/main
+   - https://hub.docker.com/r/aimstack/aim
+- lakefs
+   - https://artifacthub.io/packages/helm/lakefs/lakefs
