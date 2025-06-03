@@ -100,7 +100,7 @@ delete-lakefs:
 .PHONY: access-lakefs
 access-lakefs:
 	kubectl port-forward -n default svc/streamliner-lakefs 8000:80 \
-	&& echo "Visit http://localhost:8000/setup to use aim"
+	&& echo "Visit http://localhost:8000/setup to use lakefs"
 
 all:
 	$(MAKE) cluster
