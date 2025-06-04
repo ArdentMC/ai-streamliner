@@ -87,9 +87,11 @@ kubeflow:
 
 .PHONY: access-kubeflow
 access-kubeflow:
-	kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80 \
-	&& echo "Visit http://localhost:8080 to use Kubeflow"
-
+	@trap "kill 0" EXIT; \
+	kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80 & \
+	echo "Visit http://localhost:8080 to use Kubeflow" & \
+	open "http://localhost:8080" & \
+	wait
 
 .PHONY: mlflow
 mlflow:
@@ -115,8 +117,12 @@ delete-mlflow:
 
 .PHONY: access-mlflow
 access-mlflow:
-	kubectl port-forward svc/streamliner-mlflow -n default 8083:5000 \
-	&& echo "Visit http://localhost:8083 to use MLflow"
+	@trap "kill 0" EXIT; \
+	kubectl port-forward svc/streamliner-mlflow -n default 8083:5000 & \
+	echo "Visit http://localhost:8083 to use MLflow" & \
+	open "http://localhost:8083" & \
+	wait
+
 
 .PHONY: aim
 aim:
@@ -140,8 +146,11 @@ delete-aim:
 
 .PHONY: access-aim
 access-aim:
-	kubectl port-forward -n default svc/streamliner-aimstack 8081:80 \
-	&& echo "Visit http://localhost:8081 to use Aim"
+	@trap "kill 0" EXIT; \
+	kubectl port-forward -n default svc/streamliner-aimstack 8081:80 & \
+	echo "Visit http://localhost:8081 to use Aim" & \
+	open "http://localhost:8081" & \
+	wait
 
 .PHONY: lakefs
 lakefs:
@@ -161,8 +170,11 @@ delete-lakefs:
 
 .PHONY: access-lakefs
 access-lakefs:
-	kubectl port-forward -n default svc/streamliner-lakefs 8082:80 \
-	&& echo "Visit http://localhost:8082/setup to use LakeFS"
+	@trap "kill 0" EXIT; \
+	kubectl port-forward -n default svc/streamliner-lakefs 8082:80 & \
+	echo "Visit http://localhost:8082/setup to use LakeFS" & \
+	open "http://localhost:8082" & \
+	wait
 
 .PHONY: access
 access:
@@ -170,6 +182,7 @@ access:
 	@trap "kill 0" EXIT; \
 	kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80 & \
 	echo "Visit http://localhost:8080 to use AI Streamliner" & \
+	open "http://localhost:8080" & \
 	kubectl port-forward -n default svc/streamliner-aimstack 8081:80 & \
 	kubectl port-forward -n default svc/streamliner-lakefs 8082:80 & \
 	kubectl port-forward svc/streamliner-mlflow -n default 8083:5000 & \
