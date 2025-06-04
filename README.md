@@ -4,15 +4,21 @@
 Before getting started, ensure you have the following prerequisites installed:
 
 - kind - https://kind.sigs.k8s.io/docs/user/quick-start/#installing-with-a-package-manager
+   - check `kind version`
 - docker - https://docs.docker.com/desktop/
+   - check `docker version`
 - kubectl - https://docs.docker.com/desktop/
+   - check `kubectl version`
 - kustomize - https://kubectl.docs.kubernetes.io/installation/kustomize/
+   - check `kustomize version`
 - helm - https://helm.sh/docs/intro/install/
+   - check `helm version`
 
 ## Suggested tools
 These tools may help manage the cluster and monitor progress during install:
 
 - k9s - https://k9scli.io/topics/install/
+   - check `k9s version`
 
 ## Standard Deployment Process
 1. To deploy all AI-Streamliner resources in a single command:
