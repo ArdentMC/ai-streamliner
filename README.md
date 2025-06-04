@@ -38,7 +38,7 @@ The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
    ```
 
 ## Tool access
-1. To access all tools at once:
+1. To access AI Streamliner:
    ```bash
    make access
    ```
