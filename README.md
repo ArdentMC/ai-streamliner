@@ -3,16 +3,16 @@
 ## Prerequisites
 Before getting started, ensure you have the following prerequisites installed:
 
-- kind
-- docker
-- kubectl
-- kustomize
-- helm
+- kind - https://kind.sigs.k8s.io/docs/user/quick-start/#installing-with-a-package-manager
+- docker - https://docs.docker.com/desktop/
+- kubectl - https://docs.docker.com/desktop/
+- kustomize - https://kubectl.docs.kubernetes.io/installation/kustomize/
+- helm - https://helm.sh/docs/intro/install/
 
 ## Suggested tools
 These tools may help manage the cluster and monitor progress during install:
 
-- k9s
+- k9s - https://k9scli.io/topics/install/
 
 ## Standard Deployment Process
 1. To deploy all AI-Streamliner resources in a single command:
@@ -38,11 +38,18 @@ The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
    ```
 
 ## Tool access
-1. You can access a tool using the following template:
+1. To access all tools at once:
+   ```bash
+   make access
+   ```
+   This will open the dashboard at http://localhost:8080
+
+2. You can access individual tools using the following template:
    ```bash
    make access-<TOOL>
    ```
 The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
+
 
 ## Timeline
 Stay tuned, as we will be releasing easy installation scripts for the following tools:
@@ -59,3 +66,6 @@ Stay tuned, as we will be releasing easy installation scripts for the following 
    - https://hub.docker.com/r/aimstack/aim
 - lakefs
    - https://artifacthub.io/packages/helm/lakefs/lakefs
+
+### FYI:
+When you create the kind cluster it sets the env var KUBECONFIG to the temporary kind config. If you find yourself missing your previous kubernetes contexts then use the command `unset KUBECONFIG` to use the default config file typically found here: ~/.kube/config. And if you need to use the kind context again use the command `export KUBECONFIG=/tmp/kubeflow-config;`.
