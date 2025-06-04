@@ -42,7 +42,7 @@ The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
    ```bash
    make access
    ```
-   This will open the dashboard at http://localhost:8080
+   This will open the dashboard at http://localhost:8080. Sign in with user@example.com/12341234
 
 2. You can access individual tools using the following template:
    ```bash
