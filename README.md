@@ -14,6 +14,9 @@ Before getting started, ensure you have the following prerequisites installed:
 - helm - https://helm.sh/docs/intro/install/
    - check `helm version`
 
+## Docker configuration (Don't skip)
+Make sure your docker configuration has 16 GB of ram and 8 CPU cores (Can possibly declutter kubeflow installation to reduce requirements).
+
 ## Suggested tools
 These tools may help manage the cluster and monitor progress during install:
 
@@ -25,10 +28,11 @@ These tools may help manage the cluster and monitor progress during install:
    ```bash
    make streamliner
    ```
-
-2. If problems arise, uninstall and retry the `make deploy-streamliner` command.
+2. To monitor deployment in a new terminal (make sure to set the context in other terminals before running make commands ):
    ```bash
-   make destroy-streamliner
+   export KUBECONFIG=/tmp/kubeflow-config;
+   kubectl config use-context kind-kubeflow
+   k9s
    ```
 
 ## Stand-alone Tool Deployment
