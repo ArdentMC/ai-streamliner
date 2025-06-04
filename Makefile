@@ -57,10 +57,12 @@ kubeflow:
 	git clone https://github.com/kubeflow/kubeflow.git
 	cp kubeflow-theme/kubeflow-palette.css kubeflow/components/centraldashboard/public/kubeflow-palette.css
 	cp kubeflow-theme/logo.svg kubeflow/components/centraldashboard/public/assets/logo.svg
+	cp kubeflow-theme/favicon.ico kubeflow/components/centraldashboard/public/assets/favicon.ico
 	cd kubeflow/components/centraldashboard && find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec sed -i '' 's/007dfc/fc0000/g' {} +
 	cd kubeflow/components/centraldashboard && find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec sed -i '' 's/003c75/750000/g' {} +
 	cd kubeflow/components/centraldashboard && find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec sed -i '' 's/2196f3/f32121/g' {} +
 	cd kubeflow/components/centraldashboard && find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec sed -i '' 's/0a3b71/3b0a0a/g' {} +
+	cd kubeflow/components/centraldashboard && sed -i '' 's/<title>Kubeflow Central Dashboard<\/title>/<title>AI Streamliner<\/title>/' public/index.html
 	cd kubeflow/components/centraldashboard && docker build -t centraldashboard:dev .
 	kind load docker-image centraldashboard:dev --name=kubeflow
 
