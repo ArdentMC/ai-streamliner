@@ -73,27 +73,28 @@ data:
                 ],
                 "text": "Pipelines",
                 "type": "section"
-            },
+            }
+        ],
+        "externalLinks": [
             {
                 "type": "item",
-                "link": "/mlflow/",
+                "link": "http://localhost:8083",
                 "text": "mlflow",
                 "icon": "av:loop"
             },
             {
                 "type": "item",
-                "link": "/aim/",
+                "link": "http://localhost:8081",
                 "text": "Aim",
                 "icon": "editor:multiline-chart"
             },
             {
                 "type": "item",
-                "link": "/lakefs/",
+                "link": "http://localhost:8082",
                 "text": "lakeFS",
                 "icon": "icons:cloud"
             }
         ],
-        "externalLinks": [],
         "documentationItems": [
             {
                 "desc": "The Kubeflow website",

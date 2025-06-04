@@ -85,9 +85,10 @@ kubeflow:
 	rm -rf manifests
 	rm -rf kubeflow
 
-make access-kubeflow:
+.PHONY: access-kubeflow
+access-kubeflow:
 	kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80 \
-	&& echo "Visit http://localhost:8080 to use kubeflow"
+	&& echo "Visit http://localhost:8080 to use Kubeflow"
 
 
 .PHONY: mlflow
@@ -114,8 +115,8 @@ delete-mlflow:
 
 .PHONY: access-mlflow
 access-mlflow:
-	kubectl port-forward svc/streamliner-mlflow -n default 5000:5000 \
-	&& echo "Visit http://localhost:5000 to use mlflow"
+	kubectl port-forward svc/streamliner-mlflow -n default 8083:5000 \
+	&& echo "Visit http://localhost:8083 to use MLflow"
 
 .PHONY: aim
 aim:
@@ -139,8 +140,8 @@ delete-aim:
 
 .PHONY: access-aim
 access-aim:
-	kubectl port-forward -n default svc/streamliner-aimstack 8080:80 \
-	&& echo "Visit http://localhost:8080 to use aim"
+	kubectl port-forward -n default svc/streamliner-aimstack 8081:80 \
+	&& echo "Visit http://localhost:8081 to use Aim"
 
 .PHONY: lakefs
 lakefs:
@@ -160,8 +161,19 @@ delete-lakefs:
 
 .PHONY: access-lakefs
 access-lakefs:
-	kubectl port-forward -n default svc/streamliner-lakefs 8000:80 \
-	&& echo "Visit http://localhost:8000/setup to use lakefs"
+	kubectl port-forward -n default svc/streamliner-lakefs 8082:80 \
+	&& echo "Visit http://localhost:8082/setup to use LakeFS"
+
+.PHONY: access
+access:
+	@echo "Starting port-forwarding for Kubeflow, Aim, LakeFS, and MLflow..."
+	@trap "kill 0" EXIT; \
+	kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80 & \
+	echo "Visit http://localhost:8080 to use AI Streamliner" & \
+	kubectl port-forward -n default svc/streamliner-aimstack 8081:80 & \
+	kubectl port-forward -n default svc/streamliner-lakefs 8082:80 & \
+	kubectl port-forward svc/streamliner-mlflow -n default 8083:5000 & \
+	wait
 
 streamliner:
 	$(MAKE) cluster
@@ -172,3 +184,7 @@ streamliner:
 
 destroy-streamliner:
 	$(MAKE) destroy-cluster
+
+.PHONY: stop-lingering-port-forward
+stop-lingering-port-forward:
+	pkill -f "kubectl port-forward"
