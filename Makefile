@@ -18,8 +18,10 @@ cluster:
 destroy-cluster:
 	kind delete cluster --name=kubeflow
 
+.PHONY: kubeflow
 kubeflow:
 	rm -rf manifests
+	rm -rf kubeflow
 	git clone https://github.com/kubeflow/manifests.git
 	cd manifests && git fetch origin && git checkout -b v1.10-branch origin/v1.10-branch
 	cd manifests && while ! kustomize build common/cert-manager/base | kubectl apply -f -; do echo "Retrying cert-manager/base..."; sleep 10; done
@@ -51,6 +53,23 @@ kubeflow:
 	cd manifests && while ! kustomize build apps/kserve/models-web-app/overlays/kubeflow | kubectl apply -f -; do echo "Retrying models-web-app/overlays/kubeflow..."; sleep 10; done
 	cd manifests && while ! kustomize build apps/katib/upstream/installs/katib-with-kubeflow | kubectl apply -f -; do echo "Retrying katib/upstream/installs/katib-with-kubeflow..."; sleep 10; done
 	cd manifests && while ! kustomize build apps/centraldashboard/overlays/oauth2-proxy | kubectl apply -f -; do echo "Retrying centraldashboard/overlays/oauth2-proxy..."; sleep 10; done
+
+	git clone https://github.com/kubeflow/kubeflow.git
+	cp kubeflow-theme/kubeflow-palette.css kubeflow/components/centraldashboard/public/kubeflow-palette.css
+	cp kubeflow-theme/logo.svg kubeflow/components/centraldashboard/public/assets/logo.svg
+	cd kubeflow/components/centraldashboard && find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec sed -i '' 's/007dfc/fc0000/g' {} +
+	cd kubeflow/components/centraldashboard && find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec sed -i '' 's/003c75/750000/g' {} +
+	cd kubeflow/components/centraldashboard && find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec sed -i '' 's/2196f3/f32121/g' {} +
+	cd kubeflow/components/centraldashboard && find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec sed -i '' 's/0a3b71/3b0a0a/g' {} +
+	cd kubeflow/components/centraldashboard && docker build -t centraldashboard:dev .
+	kind load docker-image centraldashboard:dev --name=kubeflow
+
+	cd manifests && while ! kustomize build apps/centraldashboard/overlays/oauth2-proxy | kubectl apply -f -; do echo "Retrying centraldashboard/overlays/oauth2-proxy..."; sleep 10; done
+	cd manifests && mkdir -p apps/centraldashboard/overlays/apps/patches
+	cd manifests && cp ../kubeflow-config/kustomization.yaml apps/centraldashboard/overlays/apps/kustomization.yaml
+	cd manifests && cp ../kubeflow-config/apps/patches/configmap.yaml apps/centraldashboard/overlays/apps/patches/configmap.yaml
+	cd manifests && while ! kustomize build apps/centraldashboard/overlays/apps | kubectl apply -f -; do echo "Retrying centraldashboard/overlays/apps..."; sleep 10; done
+
 	cd manifests && while ! kustomize build apps/admission-webhook/upstream/overlays/cert-manager | kubectl apply -f -; do echo "Retrying admission-webhook/upstream/overlays/cert-manager..."; sleep 10; done
 	cd manifests && while ! kustomize build apps/jupyter/notebook-controller/upstream/overlays/kubeflow | kubectl apply -f -; do echo "Retrying notebook-controller/upstream/overlays/kubeflow..."; sleep 10; done
 	cd manifests && while ! kustomize build apps/jupyter/jupyter-web-app/upstream/overlays/istio | kubectl apply -f -; do echo "Retrying jupyter-web-app/upstream/overlays/istio..."; sleep 10; done
@@ -62,6 +81,7 @@ kubeflow:
 	cd manifests && while ! kustomize build apps/training-operator/upstream/overlays/kubeflow | kubectl apply --server-side --force-conflicts -f -; do echo "Retrying training-operator/upstream/overlays/kubeflow..."; sleep 10; done
 	cd manifests && while ! kustomize build common/user-namespace/base | kubectl apply -f -; do echo "Retrying user-namespace/base..."; sleep 10; done
 	rm -rf manifests
+	rm -rf kubeflow
 
 make access-kubeflow:
 	kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80 \

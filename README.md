@@ -3,11 +3,16 @@
 ## Prerequisites
 Before getting started, ensure you have the following prerequisites installed:
 
-kind
-docker
-kubectl
-kustomize
-helm
+- kind
+- docker
+- kubectl
+- kustomize
+- helm
+
+## Suggested tools
+These tools may help manage the cluster and monitor progress during install:
+
+- k9s
 
 ## Standard Deployment Process
 1. To deploy all AI-Streamliner resources in a single command:
