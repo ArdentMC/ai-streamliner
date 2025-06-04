@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: streamliner-aimstack
+  name: streamliner-aimstack
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: streamliner-aimstack
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: streamliner-aimstack
+    spec:
+      containers:
+        - name: ui
+          image: aimstack/aim:latest
+          ports:
+            - containerPort: 43800
+              protocol: TCP
+              name: ui
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+            requests:
+              cpu: 100m
+              memory: 1Gi
