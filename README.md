@@ -7,7 +7,7 @@ Before getting started, ensure you have the following prerequisites installed:
    - check `kind version`
 - docker - https://docs.docker.com/desktop/
    - check `docker version`
-- kubectl - https://docs.docker.com/desktop/
+- kubectl - https://kubernetes.io/docs/tasks/tools/#kubectl
    - check `kubectl version`
 - kustomize - https://kubectl.docs.kubernetes.io/installation/kustomize/
    - check `kustomize version`
