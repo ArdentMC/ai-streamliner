@@ -201,3 +201,14 @@ destroy-streamliner:
 .PHONY: stop-lingering-port-forward
 stop-lingering-port-forward:
 	pkill -f "kubectl port-forward"
+
+.PHONY: local-example
+local-example:
+	chmod +x sample_workflow.sh
+	./sample_workflow.sh
+
+.PHONY: jupyter-notebook
+jupyter-notebook:
+	@echo "Starting Jupyter Notebook..."
+	kubectl apply -f notebook.yaml
+
