@@ -105,7 +105,7 @@ mlflow:
 	fi
 	helm repo update
 	@if ! helm list | grep -q "^streamliner-mlflow"; then \
-		helm install streamliner-mlflow community-charts/mlflow; \
+		helm install streamliner-mlflow community-charts/mlflow --version 0.17.2 -f mlflow/values.yaml; \
 	else \
 		echo "MLflow helm release already exists"; \
 	fi
@@ -126,8 +126,8 @@ access-mlflow:
 
 .PHONY: aim
 aim:
-	docker pull aimstack/aim:latest
-	kind load docker-image aimstack/aim:latest --name=kubeflow
+	docker pull aimstack/aim:3.29.1
+	kind load docker-image aimstack/aim:3.29.1 --name=kubeflow
 	@if ! kubectl get service streamliner-aimstack >/dev/null 2>&1; then \
 		kubectl apply -f aimstack/service.yml; \
 	else \
@@ -159,7 +159,7 @@ lakefs:
 	fi
 	helm repo update
 	@if ! helm list | grep -q "^streamliner-lakefs"; then \
-		helm install streamliner-lakefs lakefs/lakefs; \
+		helm install streamliner-lakefs lakefs/lakefs --version 1.4.17; \
 	else \
 		echo "LakeFS helm release already exists"; \
 	fi
@@ -197,6 +197,15 @@ streamliner:
 
 destroy-streamliner:
 	$(MAKE) destroy-cluster
+
+.PHONY: k9s
+k9s:
+	@$(MAKE) use-context && k9s
+
+.PHONY: use-context
+use-context:
+	export KUBECONFIG=/tmp/kubeflow-config
+	kubectl config use-context kind-kubeflow
 
 .PHONY: stop-lingering-port-forward
 stop-lingering-port-forward:
