@@ -14,8 +14,25 @@ Before getting started, ensure you have the following prerequisites installed:
 - helm - https://helm.sh/docs/intro/install/
    - check `helm version`
 
-## Docker configuration (Don't skip)
-Make sure your docker configuration has 16 GB of ram and 8 CPU cores (Can possibly declutter kubeflow installation to reduce requirements).
+## Docker configuration
+Make sure your docker configuration has 16 GB of ram and 8 CPU cores.
+
+### Windows-native Deployment
+```cmd
+.\Make streamliner    # Deploy all components
+.\Make kubeflow       # Deploy only Kubeflow
+.\Make mlflow         # Deploy only MLflow 
+.\Make check          # Check requirements
+```
+
+### Troubleshooting Kubeflow Authentication Issues
+If you encounter errors like "Jwks doesn't have key to match kid or alg from Jwt" when accessing Kubeflow, this is likely related to the `oauth2_proxy_kubeflow` cookie:
+
+1. **Clear Browser Cookies**: 
+   - Open your browser developer tools (F12 or right-click -> Inspect)
+   - Go to the Application/Storage tab
+   - Find and delete cookies for localhost, particularly `oauth2_proxy_kubeflow`
+   - Refresh the page
 
 ## Suggested tools
 These tools may help manage the cluster and monitor progress during install:
@@ -24,6 +41,24 @@ These tools may help manage the cluster and monitor progress during install:
    - check `k9s version`
 
 ## Standard Deployment Process
+### For Windows Users
+1. To deploy all AI-Streamliner resources in a single command:
+   ```cmd
+   .\Make streamliner
+   ```
+2. To monitor deployment in a new terminal:
+   ```powershell
+   $env:KUBECONFIG="$env:TEMP\kubeflow-config"
+   kubectl config use-context kind-kubeflow
+   k9s
+   ```
+3. To access all AI-Streamliner tools:
+   ```cmd
+   .\Make access
+   ```
+   > **Note:** The access command automatically waits for all pods to be ready before starting port-forwarding. If some components are still in the ContainerCreating state, the script will wait until they are running.
+
+### For macOS/Linux Users
 1. To deploy all AI-Streamliner resources in a single command:
    ```bash
    make streamliner
@@ -35,7 +70,29 @@ These tools may help manage the cluster and monitor progress during install:
    k9s
    ```
 
+### For Windows Users
+1. **Option 1:** Using the native Windows .\Make:
+   ```cmd
+   .\Make check
+   ```
+   or
+   ```cmd
+   .\Make streamliner
+   ```
+
+2. To check your system requirements:
+   ```cmd
+   .\Make check
+   ```
+
+3. To get help on available commands:
+   ```cmd
+   .\Make help
+   ```
+
 ## Stand-alone Tool Deployment
+
+### For macOS/Linux Users
 1. You can install a stand-alone tool using the following template:
    ```bash
    make <TOOL>
@@ -47,7 +104,30 @@ The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
    make delete-<TOOL>
    ```
 
+### For Windows Users
+1. You can install a stand-alone tool using the native Windows Makefile:
+   ```cmd
+   .\Make kubeflow
+   .\Make mlflow
+   .\Make aim
+   .\Make lakefs
+   ```
+
+2. You can uninstall any installation:
+   ```cmd
+   .\Make delete-mlflow
+   .\Make delete-aim
+   .\Make delete-lakefs
+   ```
+
+3. To destroy the cluster:
+   ```cmd
+   .\Make destroy-cluster
+   ```
+
 ## Tool access
+
+### For macOS/Linux Users
 1. To access AI Streamliner:
    ```bash
    make access
@@ -58,8 +138,28 @@ The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
    ```bash
    make access-<TOOL>
    ```
+
+### For Windows Users
+1. To access AI Streamliner:
+   ```cmd
+   .\Make access
+   ```
+
+2. You can access individual tools using:
+   ```cmd
+   .\Make access-kubeflow
+   .\Make access-mlflow
+   .\Make access-aim
+   .\Make access-lakefs
+   ```
+
 The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
 
+## Script Organization
+The project contains several scripts:
+
+- **.\Make** - Primary Windows-native batch script for deploying and managing AI-Streamliner
+- **Makefile** - Original Linux/macOS script for deploying and managing AI-Streamliner
 
 ## Timeline
 Stay tuned, as we will be releasing easy installation scripts for the following tools:
