@@ -1,0 +1,284 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: demo-lakefs-mlflow-notebook
+  namespace: kubeflow-user-example-com
+data:
+  lakefs-mlflow-rewrite.ipynb: |
+    {
+      "cells": [
+        {
+          "cell_type": "markdown",
+          "metadata": {},
+          "source": [
+            "# MLflow, LakeFS, and Aim Notebook\n",
+            "\n",
+            "This notebook integrates a workflow for LakeFS, MLflow, and AIM"
+          ]
+        },
+        {
+          "cell_type": "code",
+          "metadata": {},
+          "execution_count": null,
+          "outputs": [],
+          "source": [
+            "# Install dependencies\n",
+            "!pip install requests mlflow pandas"
+          ]
+        },
+        {
+          "cell_type": "code",
+          "metadata": {},
+          "execution_count": null,
+          "outputs": [],
+          "source": [
+            "import os\n",
+            "import requests\n",
+            "import json\n",
+            "import mlflow\n",
+            "import pandas as pd\n",
+            "\n",
+            "# LakeFS variables\n",
+            "LAKEFS_API = \"http://streamliner-lakefs.default.svc.cluster.local:80/api/v1\"\n",
+            "LAKEFS_CREDS = (\"access\", \"secret\")\n",
+            "LAKEFS_REPO = \"demo-repo\"\n",
+            "LAKEFS_BRANCH = \"main\"\n",
+            "STORAGE_NS = \"local://demo-repo-data\"\n",
+            "DATA_FILE = \"/tmp/myfile.txt\"\n",
+            "COMMIT_MSG = \"Upload myfile.txt\"\n",
+            "\n",
+            "# MLflow variables\n",
+            "MLFLOW_TRACKING_URI = \"http://streamliner-mlflow.default.svc.cluster.local:5000\"\n",
+            "MLFLOW_EXPERIMENT_NAME = \"integration_demo\"\n",
+            "MLFLOW_RUN_NAME = \"run_1\""
+          ]
+        },
+        {
+          "cell_type": "code",
+          "metadata": {},
+          "execution_count": null,
+          "outputs": [],
+          "source": [
+            "# Create a file\n",
+            "with open(DATA_FILE, \"w\") as f:\n",
+            "    f.write(\"hello from lakefs and mlflow!\\n\")\n",
+            "print(f\"Created file: {DATA_FILE}\")"
+          ]
+        },
+        {
+          "cell_type": "markdown",
+          "metadata": {},
+          "source": [
+            "## LakeFS Integration"
+          ]
+        },
+        {
+          "cell_type": "code",
+          "metadata": {},
+          "execution_count": null,
+          "outputs": [],
+          "source": [
+            "# Create LakeFS repo\n",
+            "repo_url = f\"{LAKEFS_API}/repositories/{LAKEFS_REPO}\"\n",
+            "resp = requests.get(repo_url, auth=LAKEFS_CREDS)\n",
+            "if resp.status_code != 200:\n",
+            "    print(\"Creating repo...\")\n",
+            "    repo_payload = {\n",
+            "        \"name\": LAKEFS_REPO,\n",
+            "        \"storage_namespace\": STORAGE_NS,\n",
+            "        \"default_branch\": LAKEFS_BRANCH\n",
+            "    }\n",
+            "    r = requests.post(f\"{LAKEFS_API}/repositories\", auth=LAKEFS_CREDS, json=repo_payload)\n",
+            "    print(f\"Created repo: {r.text}\")\n",
+            "else:\n",
+            "    print(f\"Repository {LAKEFS_REPO} already exists.\")"
+          ]
+        },
+        {
+          "cell_type": "code",
+          "metadata": {},
+          "execution_count": null,
+          "outputs": [],
+          "source": [
+            "# Upload the file to LakeFS\n",
+            "with open(DATA_FILE, \"r\") as f:\n",
+            "    file_content = f.read()\n",
+            "payload = {\"path\": os.path.basename(DATA_FILE), \"content\": file_content}\n",
+            "upload_url = f\"{LAKEFS_API}/repositories/{LAKEFS_REPO}/branches/{LAKEFS_BRANCH}/objects?path={os.path.basename(DATA_FILE)}\"\n",
+            "r = requests.post(upload_url, auth=LAKEFS_CREDS, headers={\"Content-Type\": \"application/json\"}, data=json.dumps(payload))\n",
+            "print(f\"LakeFS upload: {r.status_code}, {r.text}\")"
+          ]
+        },
+        {
+          "cell_type": "code",
+          "metadata": {},
+          "execution_count": null,
+          "outputs": [],
+          "source": [
+            "# Commit in LakeFS\n",
+            "commit_url = f\"{LAKEFS_API}/repositories/{LAKEFS_REPO}/branches/{LAKEFS_BRANCH}/commits\"\n",
+            "commit_payload = {\"message\": COMMIT_MSG}\n",
+            "r = requests.post(commit_url, auth=LAKEFS_CREDS, headers={\"Content-Type\": \"application/json\"}, json=commit_payload)\n",
+            "print(f\"LakeFS commit: {r.status_code}, {r.text}\")"
+          ]
+        },
+        {
+          "cell_type": "code",
+          "metadata": {},
+          "execution_count": null,
+          "outputs": [],
+          "source": [
+            "# List files in LakeFS\n",
+            "ls_url = f\"{LAKEFS_API}/repositories/{LAKEFS_REPO}/refs/{LAKEFS_BRANCH}/objects/ls?prefix=\"\n",
+            "r = requests.get(ls_url, auth=LAKEFS_CREDS)\n",
+            "print(\"LakeFS ls:\")\n",
+            "print(json.dumps(r.json(), indent=2))"
+          ]
+        },
+        {
+          "cell_type": "code",
+          "metadata": {},
+          "execution_count": null,
+          "outputs": [],
+          "source": [
+            "print(f\"LakeFS UI: http://localhost:8082/repositories/{LAKEFS_REPO}/objects?ref={LAKEFS_BRANCH}\")"
+          ]
+        },
+        {
+          "cell_type": "markdown",
+          "metadata": {},
+          "source": [
+            "## MLFlow Integration"
+          ]
+        },
+        {
+          "cell_type": "code",
+          "metadata": {},
+          "execution_count": null,
+          "outputs": [],
+          "source": [
+            "# Log an MLflow experiment and artifact\n",
+            "mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)\n",
+            "\n",
+            "# Create experiment if it doesn't exist\n",
+            "client = mlflow.tracking.MlflowClient()\n",
+            "try:\n",
+            "    client.create_experiment(MLFLOW_EXPERIMENT_NAME)\n",
+            "except Exception:\n",
+            "    pass\n",
+            "\n",
+            "mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)\n",
+            "\n",
+            "branch_info = requests.get(\n",
+            "    f\"{LAKEFS_API}/repositories/{LAKEFS_REPO}/branches/{LAKEFS_BRANCH}\",\n",
+            "    auth=LAKEFS_CREDS\n",
+            ").json()\n",
+            "\n",
+            "lakefs_commit_info = requests.get(f\"{LAKEFS_API}/repositories/{LAKEFS_REPO}/branches/{LAKEFS_BRANCH}\", auth=LAKEFS_CREDS).json()\n",
+            "lakefs_commit_id = lakefs_commit_info.get(\"commit_id\", \"\")\n",
+            "lakefs_commit_url = f\"http://localhost:8082/repositories/{LAKEFS_REPO}/commits/{lakefs_commit_id}\"\n",
+            "\n",
+            "import mlflow.data\n",
+            "\n",
+            "df = pd.read_csv(DATA_FILE)\n",
+            "dataset = mlflow.data.from_pandas(\n",
+            "    df,\n",
+            "    source=lakefs_commit_url or DATA_FILE,\n",
+            "    name=os.path.basename(DATA_FILE),\n",
+            ")\n",
+            "with mlflow.start_run(run_name=MLFLOW_RUN_NAME) as run:\n",
+            "    mlflow.log_param(\"param1\", 123)\n",
+            "    mlflow.log_metric(\"accuracy\", 0.99)\n",
+            "    mlflow.log_param(\"lakefs_commit_id\", lakefs_commit_id)\n",
+            "    mlflow.log_param(\"lakefs_commit_url\", lakefs_commit_url)\n",
+            "    mlflow.log_input(dataset, context=\"train\")\n",
+            "    experiment = mlflow.get_experiment_by_name(MLFLOW_EXPERIMENT_NAME)\n",
+            "    print(f\"MLflow run: {run.info.run_id}\")\n",
+            "    print(f\"🏃 View run {MLFLOW_RUN_NAME} at: http://localhost:8083/#/experiments/{experiment.experiment_id}/runs/{run.info.run_id}\")\n",
+            "    print(f\"🧪 View experiment at: http://localhost:8083/#/experiments/{experiment.experiment_id}\")\n"
+         ]
+        },
+        {
+          "cell_type": "markdown",
+          "metadata": {},
+          "source": [
+            "## Aim Integration"
+          ]
+        },
+        {
+          "cell_type": "code",
+          "metadata": {},
+          "execution_count": null,
+          "outputs": [],
+          "source": [
+            "# Aim integration: create, fetch, list experiment\n",
+            "AIM_API = \"http://streamliner-aimstack.default.svc.cluster.local/api\"\n",
+            "EXPERIMENT_NAME = \"integration-demo-experiment\"\n",
+            "\n",
+            "search_resp = requests.get(f\"{AIM_API}/experiments\", params={\"name\": EXPERIMENT_NAME})\n",
+            "search_resp.raise_for_status()\n",
+            "experiments = search_resp.json()\n",
+            "if experiments and isinstance(experiments, list) and experiments:\n",
+            "    exp = experiments[0]\n",
+            "    exp_id = exp.get(\"id\") or exp.get(\"_id\") or exp.get(\"uuid\")\n",
+            "    print(f\"Experiment '{EXPERIMENT_NAME}' already exists with id: {exp_id}\")\n",
+            "else:\n",
+            "    exp_payload = {\n",
+            "        \"name\": EXPERIMENT_NAME,\n",
+            "        \"description\": \"Experiment created via REST API integration test\"\n",
+            "    }\n",
+            "    create_resp = requests.post(f\"{AIM_API}/experiments\", json=exp_payload)\n",
+            "    if create_resp.status_code == 201:\n",
+            "        exp = create_resp.json()\n",
+            "        exp_id = exp.get(\"id\") or exp.get(\"_id\") or exp.get(\"uuid\")\n",
+            "        print(f\"Created experiment '{EXPERIMENT_NAME}' with id: {exp_id}\")\n",
+            "    else:\n",
+            "        raise RuntimeError(f\"Failed to create experiment: {create_resp.status_code} {create_resp.text}\")\n",
+            "\n",
+            "get_resp = requests.get(f\"{AIM_API}/experiments/{exp_id}\")\n",
+            "print(\"Fetch Experiment Status:\", get_resp.status_code)\n",
+            "print(json.dumps(get_resp.json(), indent=2))\n",
+            "\n",
+            "runs_resp = requests.get(f\"{AIM_API}/experiments/{exp_id}/runs\")\n",
+            "print(\"List Runs Status:\", runs_resp.status_code)\n",
+            "print(json.dumps(runs_resp.json(), indent=2))"
+          ]
+        }
+      ],
+      "metadata": {
+        "kernelspec": {
+          "display_name": "Python 3",
+          "language": "python",
+          "name": "python3"
+        },
+        "language_info": {
+          "name": "python",
+          "version": "3.12"
+        }
+      },
+      "nbformat": 4,
+      "nbformat_minor": 5
+    }
+---
+apiVersion: kubeflow.org/v1
+kind: Notebook
+metadata:
+  name: lakefs-mlflow-demo
+  namespace: kubeflow-user-example-com
+spec:
+  template:
+    spec:
+      containers:
+        - name: notebook
+          image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter-tensorflow-full:v1.10.0
+          resources:
+            requests:
+              memory: 1Gi
+              cpu: 500m
+          volumeMounts:
+            - name: preload-notebook
+              mountPath: /home/jovyan/work
+      volumes:
+        - name: preload-notebook
+          configMap:
+            name: demo-lakefs-mlflow-notebook

@@ -1,0 +1,16 @@
+backendStore:
+  defaultSqlitePath: "/mnt/data/mlflow.db"
+
+artifactRoot:
+  defaultArtifactRoot: "/mnt/data/mlruns"
+  proxiedArtifactStorage: true
+  defaultArtifactsDestination: "/mnt/data/mlartifacts"
+
+extraVolumes:
+  - name: mlflow-volume
+    persistentVolumeClaim:
+      claimName: mlflow-pvc
+
+extraVolumeMounts:
+  - name: mlflow-volume
+    mountPath: /mnt/data

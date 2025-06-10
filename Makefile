@@ -162,7 +162,7 @@ mlflow: check-dependencies
 	fi
 	helm repo update
 	@if ! helm list | grep -q "^streamliner-mlflow"; then \
-		helm install streamliner-mlflow community-charts/mlflow; \
+		helm install streamliner-mlflow community-charts/mlflow --version 0.17.2 -f mlflow/values.yaml; \
 	else \
 		echo "MLflow helm release already exists"; \
 	fi
@@ -187,8 +187,8 @@ access-mlflow: check-dependencies
 
 .PHONY: aim
 aim: check-dependencies
-	docker pull aimstack/aim:latest
-	kind load docker-image aimstack/aim:latest --name=kubeflow
+	docker pull aimstack/aim:3.29.1
+	kind load docker-image aimstack/aim:3.29.1 --name=kubeflow
 	@if ! kubectl get service streamliner-aimstack >/dev/null 2>&1; then \
 		kubectl apply -f aimstack/service.yml; \
 	else \
@@ -224,7 +224,7 @@ lakefs: check-dependencies
 	fi
 	helm repo update
 	@if ! helm list | grep -q "^streamliner-lakefs"; then \
-		helm install streamliner-lakefs lakefs/lakefs; \
+		helm install streamliner-lakefs lakefs/lakefs --version 1.4.17; \
 	else \
 		echo "LakeFS helm release already exists"; \
 	fi
@@ -292,3 +292,8 @@ stop-lingering-port-forward:
 	else \
 		taskkill /F /IM kubectl.exe /T || true; \
 	fi
+
+.PHONY: jupyter-notebook
+jupyter-notebook:
+	@echo "Starting Jupyter Notebook..."
+	kubectl apply -f notebook.yaml

@@ -97,6 +97,11 @@ data:
         ],
         "documentationItems": [
             {
+                "desc": "The AI Streamliner GitHub repository contains the source code and documentation for the AI Streamliner project.",
+                "link": "https://github.com/ArdentMC/ai-streamliner?tab=readme-ov-file#ai-streamliner",
+                "text": "AI Streamliner"
+            },
+            {
                 "desc": "The Kubeflow website",
                 "link": "https://www.kubeflow.org/",
                 "text": "Kubeflow Website"
