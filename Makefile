@@ -198,23 +198,9 @@ streamliner:
 destroy-streamliner:
 	$(MAKE) destroy-cluster
 
-.PHONY: k9s
-k9s:
-	@$(MAKE) use-context && k9s
-
-.PHONY: use-context
-use-context:
-	export KUBECONFIG=/tmp/kubeflow-config
-	kubectl config use-context kind-kubeflow
-
 .PHONY: stop-lingering-port-forward
 stop-lingering-port-forward:
 	pkill -f "kubectl port-forward"
-
-.PHONY: local-example
-local-example:
-	chmod +x sample_workflow.sh
-	./sample_workflow.sh
 
 .PHONY: jupyter-notebook
 jupyter-notebook:

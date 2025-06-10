@@ -22,8 +22,6 @@ These tools may help manage the cluster and monitor progress during install:
 
 - k9s - https://k9scli.io/topics/install/
    - check `k9s version`
-- mlflow - https://www.mlflow.org/docs/1.26.1/quickstart.html
-   - check `mlflow --version`
 
 ## Standard Deployment Process
 1. To deploy all AI-Streamliner resources in a single command:

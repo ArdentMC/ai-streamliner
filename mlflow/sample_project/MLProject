@@ -1,7 +1,0 @@
-name: lakefs_mlflow_example
-
-entry_points:
-  main:
-    parameters:
-      data_file: {type: path, default: "myfile.txt"}
-    command: "python3 main.py --data_file {data_file}"
