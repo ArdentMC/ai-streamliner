@@ -58,7 +58,7 @@ These tools may help manage the cluster and monitor progress during install:
    ```
    > **Note:** The access command automatically waits for all pods to be ready before starting port-forwarding. If some components are still in the ContainerCreating state, the script will wait until they are running.
 
-### For macOS/Linux Users
+### For macOS/Linux/WSL Users
 1. To deploy all AI-Streamliner resources in a single command:
    ```bash
    make streamliner
@@ -92,7 +92,7 @@ These tools may help manage the cluster and monitor progress during install:
 
 ## Stand-alone Tool Deployment
 
-### For macOS/Linux Users
+### For macOS/Linux/WSL Users
 1. You can install a stand-alone tool using the following template:
    ```bash
    make <TOOL>
@@ -127,7 +127,7 @@ The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
 
 ## Tool access
 
-### For macOS/Linux Users
+### For macOS/Linux/WSL Users
 1. To access AI Streamliner:
    ```bash
    make access
@@ -159,7 +159,7 @@ The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
 The project contains several scripts:
 
 - **.\Make** - Primary Windows-native batch script for deploying and managing AI-Streamliner
-- **Makefile** - Original Linux/macOS script for deploying and managing AI-Streamliner
+- **Makefile** - Original macOS/Linux/WSL script for deploying and managing AI-Streamliner
 
 ## Timeline
 Stay tuned, as we will be releasing easy installation scripts for the following tools:
