@@ -1,3 +1,5 @@
 /.history
 /manifests
 /kubeflow
+.venv
+pyproject.toml
