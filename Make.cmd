@@ -502,6 +502,8 @@ for /r %%f in (*.js, *.ts, *.css, *.html, *.json) do (
 )
 
 powershell -Command "(Get-Content 'public\index.html') -replace '<title>Kubeflow Central Dashboard</title>', '<title>AI Streamliner</title>' | Set-Content 'public\index.html'"
+powershell -Command "(Get-Content 'public\components\main-page.pug') -replace 'https://github.com/kubeflow/kubeflow', 'https://github.com/ArdentMC/ai-streamliner' | Set-Content 'public\components\main-page.pug'"
+powershell -Command "(Get-Content 'public\components\main-page.pug') -replace 'https://www.kubeflow.org/docs/about/kubeflow/', 'https://github.com/ArdentMC/ai-streamliner?tab=readme-ov-file#ai-streamliner' | Set-Content 'public\components\main-page.pug'"
 
 echo Building custom centraldashboard Docker image...
 docker build -t centraldashboard:dev .

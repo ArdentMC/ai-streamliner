@@ -116,6 +116,8 @@ kubeflow: check-dependencies
 	cd kubeflow/components/centraldashboard && find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec $(SED_INPLACE) 's/2196f3/f32121/g' {} \;
 	cd kubeflow/components/centraldashboard && find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec $(SED_INPLACE) 's/0a3b71/3b0a0a/g' {} \;
 	cd kubeflow/components/centraldashboard && $(SED_INPLACE) 's/<title>Kubeflow Central Dashboard<\/title>/<title>AI Streamliner<\/title>/' public/index.html
+	cd kubeflow/components/centraldashboard && $(SED_INPLACE) 's|https://github.com/kubeflow/kubeflow|https://github.com/ArdentMC/ai-streamliner|g' public/components/main-page.pug
+	cd kubeflow/components/centraldashboard && $(SED_INPLACE) 's|https://www.kubeflow.org/docs/about/kubeflow/|https://github.com/ArdentMC/ai-streamliner?tab=readme-ov-file#ai-streamliner|g' public/components/main-page.pug
 	cd kubeflow/components/centraldashboard && docker build -t centraldashboard:dev .
 	kind load docker-image centraldashboard:dev --name=kubeflow
 
