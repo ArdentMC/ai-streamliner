@@ -102,6 +102,16 @@ data:
                 "text": "AI Streamliner"
             },
             {
+                "desc": "The Kubeflow GitHub repository",
+                "link": "https://github.com/kubeflow/kubeflow",
+                "text": "Kubeflow GitHub"
+            },
+            {
+                "desc": "Documentation about Kubeflow",
+                "link": "https://www.kubeflow.org/docs/about/kubeflow/",
+                "text": "Kubeflow Documentation"
+            },
+            {
                 "desc": "The Kubeflow website",
                 "link": "https://www.kubeflow.org/",
                 "text": "Kubeflow Website"
