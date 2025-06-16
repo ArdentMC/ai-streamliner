@@ -15,24 +15,7 @@ Before getting started, ensure you have the following prerequisites installed:
    - check `helm version`
 
 ## Docker configuration
-Make sure your docker configuration has 16 GB of ram and 8 CPU cores.
-
-### Windows-native Deployment
-```cmd
-.\Make streamliner    # Deploy all components
-.\Make kubeflow       # Deploy only Kubeflow
-.\Make mlflow         # Deploy only MLflow 
-.\Make check          # Check requirements
-```
-
-### Troubleshooting Kubeflow Authentication Issues
-If you encounter errors like "Jwks doesn't have key to match kid or alg from Jwt" when accessing Kubeflow, this is likely related to the `oauth2_proxy_kubeflow` cookie:
-
-1. **Clear Browser Cookies**: 
-   - Open your browser developer tools (F12 or right-click -> Inspect)
-   - Go to the Application/Storage tab
-   - Find and delete cookies for localhost, particularly `oauth2_proxy_kubeflow`
-   - Refresh the page
+Make sure docker is configured for 16 GB of ram and 8 CPU cores.
 
 ## Suggested tools
 These tools may help manage the cluster and monitor progress during install:
@@ -40,55 +23,57 @@ These tools may help manage the cluster and monitor progress during install:
 - k9s - https://k9scli.io/topics/install/
    - check `k9s version`
 
+## Script Organization
+The project contains several scripts:
+
+- **.\Make** - Primary Windows-native batch script for deploying and managing AI-Streamliner
+- **Makefile** - Original macOS/Linux/WSL script for deploying and managing AI-Streamliner
+
 ## Standard Deployment Process
 ### For Windows Users
-1. To deploy all AI-Streamliner resources in a single command:
+1. To check if all prerequisite tools are installed:
+   ```cmd
+   .\Make check
+   ```
+2. To deploy all AI-Streamliner resources in a single command:
    ```cmd
    .\Make streamliner
    ```
-2. To monitor deployment in a new terminal:
+3. Ignore any errors or outputs in the terminal. If installation doesn't complete in 15 minutes, try again. The installation will either succeed or fail no intervention is necessary while installing.
+4. To monitor deployment in a new terminal:
    ```powershell
    $env:KUBECONFIG="$env:TEMP\kubeflow-config"
    kubectl config use-context kind-kubeflow
    k9s
    ```
-3. To access all AI-Streamliner tools:
+5. To access all AI-Streamliner tools:
    ```cmd
    .\Make access
    ```
    > **Note:** The access command automatically waits for all pods to be ready before starting port-forwarding. If some components are still in the ContainerCreating state, the script will wait until they are running.
 
 ### For macOS/Linux/WSL Users
-1. To deploy all AI-Streamliner resources in a single command:
+1. To check if all prerequisite tools are installed:
+   ```bash
+   make check-dependencies
+   ```
+2. To deploy all AI-Streamliner resources in a single command:
    ```bash
    make streamliner
    ```
-2. To monitor deployment in a new terminal (make sure to set the context in other terminals before running make commands ):
+3. Ignore any errors or outputs in the terminal. If installation doesn't complete in 15 minutes, try again. The installation will either succeed or fail no intervention is necessary while installing.
+
+4. To monitor deployment in a new terminal (make sure to set the context in other terminals before running make commands ):
    ```bash
    export KUBECONFIG=/tmp/kubeflow-config;
    kubectl config use-context kind-kubeflow
    k9s
    ```
-
-### For Windows Users
-1. **Option 1:** Using the native Windows .\Make:
-   ```cmd
-   .\Make check
+5. To access all AI-Streamliner tools:
+   ```bash
+   make access
    ```
-   or
-   ```cmd
-   .\Make streamliner
-   ```
-
-2. To check your system requirements:
-   ```cmd
-   .\Make check
-   ```
-
-3. To get help on available commands:
-   ```cmd
-   .\Make help
-   ```
+   > **Note:** The access command automatically waits for all pods to be ready before starting port-forwarding. If some components are still in the ContainerCreating state, the script will wait until they are running.
 
 ## Stand-alone Tool Deployment
 
@@ -155,17 +140,10 @@ The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
 
 The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
 
-## Script Organization
-The project contains several scripts:
-
-- **.\Make** - Primary Windows-native batch script for deploying and managing AI-Streamliner
-- **Makefile** - Original macOS/Linux/WSL script for deploying and managing AI-Streamliner
-
 ## Timeline
 Stay tuned, as we will be releasing easy installation scripts for the following tools:
 - minio
 - keycloak
-
 
 ### Useful Resources:
 - mlflow
@@ -177,5 +155,13 @@ Stay tuned, as we will be releasing easy installation scripts for the following 
 - lakefs
    - https://artifacthub.io/packages/helm/lakefs/lakefs
 
-### FYI:
-When you create the kind cluster it sets the env var KUBECONFIG to the temporary kind config. If you find yourself missing your previous kubernetes contexts then use the command `unset KUBECONFIG` to use the default config file typically found here: ~/.kube/config. And if you need to use the kind context again use the command `export KUBECONFIG=/tmp/kubeflow-config;`.
+### Troubleshooting
+- Kubeflow Authentication Issues
+   - If you encounter errors like "Jwks doesn't have key to match kid or alg from Jwt" when accessing Kubeflow, this is likely related to the `oauth2_proxy_kubeflow` cookie:
+
+      - **Clear Browser Cookies**: 
+         - Open your browser developer tools (F12 or right-click -> Inspect)
+         - Go to the Application/Storage tab
+         - Find and delete cookies for localhost, particularly `oauth2_proxy_kubeflow`
+         - Refresh the page
+- When you create the kind cluster it sets the env var KUBECONFIG to the temporary kind config. If you find yourself missing your previous kubernetes contexts then use the command `unset KUBECONFIG` to use the default config file typically found here: ~/.kube/config. And if you need to use the kind context again use the command `export KUBECONFIG=/tmp/kubeflow-config;`.
