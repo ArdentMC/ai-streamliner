@@ -1,5 +1,5 @@
 # AI-Streamliner
-This project automates deployment of Kubeflow (Apache 2.0), MLflow (Apache 2.0), Aim (Apache 2.0), and LakeFS (Apache 2.0) into a unified webapp deployed in kind (Apache 2.0).
+This project automates deployment of Kubeflow, MLflow, Aim, and LakeFS into a unified webapp deployed in kind.
 
 ## Prerequisites
 Before getting started, ensure you have the following prerequisites installed:
