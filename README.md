@@ -166,4 +166,5 @@ Stay tuned, as we will be releasing easy installation scripts for the following 
          - Find and delete cookies for localhost, particularly `oauth2_proxy_kubeflow`
          - Refresh the page
 - When you create the kind cluster it sets the env var KUBECONFIG to the temporary kind config. If you find yourself missing your previous kubernetes contexts then use the command `unset KUBECONFIG` to use the default config file typically found here: ~/.kube/config. And if you need to use the kind context again use the command `export KUBECONFIG=/tmp/kubeflow-config;`.
+- the /tmp directory might clean up the config file after some time. Use `kind get kubeconfig --name kubeflow > /tmp/kubeflow-config` to recreate it. Bug fix wanted (good first issue).
 - If you find want to troubleshoot a faulty installation step look at the makefile to identify which command is failing. Connect to the cluster and attempt to run the command manually. If it succeeds, run the make streamliner command again to continue with the full installation.
