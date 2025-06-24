@@ -188,6 +188,11 @@ access:
 	kubectl port-forward svc/streamliner-mlflow -n default 8083:5000 & \
 	wait
 
+.PHONY: switchback
+switchback:
+	@echo "Switching back to the kind-kubeflow context..."
+	bash set-context.sh
+
 streamliner:
 	$(MAKE) cluster
 	$(MAKE) kubeflow
