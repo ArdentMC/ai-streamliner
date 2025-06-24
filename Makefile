@@ -267,6 +267,30 @@ access-lakefs: check-dependencies
 	$(OPEN_CMD) "http://localhost:8082" & \
 	wait
 
+.PHONY: switchback
+switchback:
+	@echo "$(BLUE)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BLUE)           Switching to kind-kubeflow context            $(NC)"
+	@echo "$(BLUE)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)→$(NC) Setting kubectl context..."
+	@kubectl config use-context kind-kubeflow
+	@echo "$(YELLOW)→$(NC) Generating kubeconfig..."
+	@kind get kubeconfig --name kubeflow > /tmp/kubeflow-config
+	@echo "$(YELLOW)→$(NC) Configuring environment..."
+	@export KUBECONFIG=/tmp/kubeflow-config && \
+	echo "$(YELLOW)→$(NC) Restarting kubeflow pods..." && \
+	kubectl delete pod -n kubeflow --all && \
+	echo "$(YELLOW)→$(NC) Waiting for pods to restart (timeout: 300s)..." && \
+	kubectl wait --for=condition=Ready pods --all -n kubeflow --timeout=300s && \
+	echo "$(YELLOW)→$(NC) Current pod status:" && \
+	kubectl get pods -n kubeflow
+	@echo ""
+	@echo "$(GREEN)✓ Kubeflow context switched and pods restarted successfully!$(NC)"
+	@echo ""
+	@echo "$(BLUE)Next steps:$(NC)"
+	@echo "  export KUBECONFIG=/tmp/kubeflow-config;"
+	@echo "  make access"
+
 .PHONY: access
 access: check-dependencies
 	@echo "Checking if all services are ready before starting port-forwarding..."
