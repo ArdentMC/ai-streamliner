@@ -142,7 +142,7 @@ The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
 The available stand-alone deployments are kubeflow, mlflow, lakefs, and aim.
 
 ## Switching kubernetes contexts MacOS/Linux users
-After the initial AI-Streamliner installation, you may encounter difficulty accessing your control center. If you want to work in a new terminal or kubernetes contexts away from the kind-kubeflow context and back again, there are some steps that should be taken before the kubecontext is compeltely reset. To switch back to the `kind-kubeflow` cluster after working elsewhere, or opening a new terminal, execute the following commands:
+After the initial AI-Streamliner installation, you may encounter difficulty accessing your control center. If you want to work in a new terminal or kubernetes contexts away from the kind-kubeflow context and back again, there are some steps that should be taken before the kubecontext is completely reset. To switch back to the `kind-kubeflow` cluster after working elsewhere, or opening a new terminal, execute the following commands:
 
 ```bash
 make switchback
