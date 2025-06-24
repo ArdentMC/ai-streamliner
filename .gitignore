@@ -3,3 +3,4 @@
 /kubeflow
 .venv
 pyproject.toml
+.lakectl.yaml

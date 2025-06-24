@@ -15,6 +15,12 @@
 # Cross-platform Makefile for AI Streamliner
 # Works on macOS, Linux, and Windows with WSL
 
+# Colors for better readability
+GREEN=\033[0;32m
+BLUE=\033[0;34m
+YELLOW=\033[1;33m
+NC=\033[0m
+
 # Detect operating system
 UNAME_S := $(shell uname -s)
 
