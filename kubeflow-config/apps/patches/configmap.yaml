@@ -100,6 +100,41 @@ data:
                 "desc": "The AI Streamliner GitHub repository contains the source code and documentation for the AI Streamliner project.",
                 "link": "https://github.com/ArdentMC/ai-streamliner?tab=readme-ov-file#ai-streamliner",
                 "text": "AI Streamliner"
+            },
+            {
+                "desc": "The Kubeflow GitHub repository",
+                "link": "https://github.com/kubeflow/kubeflow",
+                "text": "Kubeflow GitHub"
+            },
+            {
+                "desc": "Documentation about Kubeflow",
+                "link": "https://www.kubeflow.org/docs/about/kubeflow/",
+                "text": "Kubeflow Documentation"
+            },
+            {
+                "desc": "The Kubeflow website",
+                "link": "https://www.kubeflow.org/",
+                "text": "Kubeflow Website"
+            },
+            {
+                "desc": "Documentation for Kubeflow Pipelines",
+                "link": "https://www.kubeflow.org/docs/components/pipelines/",
+                "text": "Kubeflow Pipelines Documentation"
+            },
+            {
+                "desc": "Documentation for Kubeflow Notebooks",
+                "link": "https://www.kubeflow.org/docs/components/notebooks/",
+                "text": "Kubeflow Notebooks Documentation"
+            },
+            {
+                "desc": "Documentation for Kubeflow Training Operator",
+                "link": "https://www.kubeflow.org/docs/components/training/",
+                "text": "Kubeflow Training Operator Documentation"
+            },
+            {
+                "desc": "Documentation for Katib",
+                "link": "https://www.kubeflow.org/docs/components/katib/",
+                "text": "Katib Documentation"
             }
         ],
         "quickLinks": [
