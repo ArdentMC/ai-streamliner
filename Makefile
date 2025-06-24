@@ -1,3 +1,9 @@
+# Colors for better readability
+GREEN=\033[0;32m
+BLUE=\033[0;34m
+YELLOW=\033[1;33m
+NC=\033[0m
+
 cluster:
 	@if ! kind get clusters | grep -q "^kubeflow$$"; then \
 		kind create cluster --name=kubeflow --config=cluster.yml; \
@@ -190,8 +196,27 @@ access:
 
 .PHONY: switchback
 switchback:
-	@echo "Switching back to the kind-kubeflow context..."
-	bash set-context.sh
+	@echo "$(BLUE)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BLUE)           Switching to kind-kubeflow context            $(NC)"
+	@echo "$(BLUE)════════════════════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)→$(NC) Setting kubectl context..."
+	@kubectl config use-context kind-kubeflow
+	@echo "$(YELLOW)→$(NC) Generating kubeconfig..."
+	@kind get kubeconfig --name kubeflow > /tmp/kubeflow-config
+	@echo "$(YELLOW)→$(NC) Configuring environment..."
+	@export KUBECONFIG=/tmp/kubeflow-config && \
+	echo "$(YELLOW)→$(NC) Restarting kubeflow pods..." && \
+	kubectl delete pod -n kubeflow --all && \
+	echo "$(YELLOW)→$(NC) Waiting for pods to restart (timeout: 300s)..." && \
+	kubectl wait --for=condition=Ready pods --all -n kubeflow --timeout=300s && \
+	echo "$(YELLOW)→$(NC) Current pod status:" && \
+	kubectl get pods -n kubeflow
+	@echo ""
+	@echo "$(GREEN)✓ Kubeflow context switched and pods restarted successfully!$(NC)"
+	@echo ""
+	@echo "$(BLUE)Next steps:$(NC)"
+	@echo "  export KUBECONFIG=/tmp/kubeflow-config;"
+	@echo "  make access"
 
 streamliner:
 	$(MAKE) cluster
