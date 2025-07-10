@@ -134,6 +134,9 @@ kubeflow: check-dependencies
 	cd kubeflow/components/centraldashboard && $(SED_INPLACE) 's|https://www.kubeflow.org/docs/about/kubeflow/|https://github.com/ArdentMC/ai-streamliner?tab=readme-ov-file#ai-streamliner|g' public/components/main-page.pug
 	cd kubeflow/components/centraldashboard && docker build -t centraldashboard:dev .
 	kind load docker-image centraldashboard:dev --name=kubeflow
+	# docker tag centraldashboard:dev 905418165254.dkr.ecr.us-east-1.amazonaws.com/centraldashboard:dev
+	# aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 905418165254.dkr.ecr.us-east-1.amazonaws.com
+	# docker push 905418165254.dkr.ecr.us-east-1.amazonaws.com/centraldashboard:dev
 
 	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/centraldashboard/overlays/oauth2-proxy | kubectl apply -f -; do echo "Retrying centraldashboard/overlays/oauth2-proxy..."; sleep 10; done
 	cd manifests && mkdir -p apps/centraldashboard/overlays/apps/patches
