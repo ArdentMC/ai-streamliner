@@ -97,9 +97,9 @@ kubeflow: check-dependencies
 	cd manifests && kubectl wait --for=condition=Ready pod -l 'app in (cert-manager,webhook)' --timeout=180s -n cert-manager
 	cd manifests && kubectl wait --for=jsonpath='{.subsets[0].addresses[0].targetRef.kind}'=Pod endpoints -l 'app in (cert-manager,webhook)' --timeout=180s -n cert-manager
 	cd manifests && echo "Installing Istio configured with external authorization..."
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/istio-1-24/istio-crds/base | kubectl apply -f -; do echo "Retrying istio-crds/base..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/istio-1-24/istio-namespace/base | kubectl apply -f -; do echo "Retrying istio-namespace/base..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/istio-1-24/istio-install/overlays/oauth2-proxy | kubectl apply -f -; do echo "Retrying istio-install/overlays/oauth2-proxy..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) common/istio/istio-crds/base | kubectl apply -f -; do echo "Retrying istio-crds/base..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) common/istio/istio-namespace/base | kubectl apply -f -; do echo "Retrying istio-namespace/base..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) common/istio/istio-install/overlays/oauth2-proxy | kubectl apply -f -; do echo "Retrying istio-install/overlays/oauth2-proxy..."; sleep 10; done
 	cd manifests && echo "Waiting for all Istio Pods to become ready..."
 	cd manifests && kubectl wait --for=condition=Ready pods --all -n istio-system --timeout=300s
 	cd manifests && echo "Installing oauth2-proxy..."
@@ -109,17 +109,17 @@ kubeflow: check-dependencies
 	cd manifests && while ! $(KUSTOMIZE_BUILD) common/dex/overlays/oauth2-proxy | kubectl apply -f -; do echo "Retrying dex/overlays/oauth2-proxy..."; sleep 10; done
 	cd manifests && kubectl wait --for=condition=Ready pods --all --timeout=180s -n auth
 	cd manifests && while ! $(KUSTOMIZE_BUILD) common/knative/knative-serving/overlays/gateways | kubectl apply -f -; do echo "Retrying knative-serving/overlays/gateways..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/istio-1-24/cluster-local-gateway/base | kubectl apply -f -; do echo "Retrying cluster-local-gateway/base..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) common/istio/cluster-local-gateway/base | kubectl apply -f -; do echo "Retrying cluster-local-gateway/base..."; sleep 10; done
 	cd manifests && while ! $(KUSTOMIZE_BUILD) common/knative/knative-eventing/base | kubectl apply -f -; do echo "Retrying knative-eventing/base..."; sleep 10; done
 	cd manifests && while ! $(KUSTOMIZE_BUILD) common/kubeflow-namespace/base | kubectl apply -f -; do echo "Retrying kubeflow-namespace/base..."; sleep 10; done
 	cd manifests && while ! $(KUSTOMIZE_BUILD) common/networkpolicies/base | kubectl apply -f -; do echo "Retrying networkpolicies/base..."; sleep 10; done
 	cd manifests && while ! $(KUSTOMIZE_BUILD) common/kubeflow-roles/base | kubectl apply -f -; do echo "Retrying kubeflow-roles/base..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/istio-1-24/kubeflow-istio-resources/base | kubectl apply -f -; do echo "Retrying kubeflow-istio-resources/base..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/pipeline/upstream/env/cert-manager/platform-agnostic-multi-user | kubectl apply -f -; do echo "Retrying pipeline/env/cert-manager/platform-agnostic-multi-user..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/kserve/kserve | kubectl apply --server-side --force-conflicts -f -; do echo "Retrying kserve/kserve... (This one takes several minutes)"; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/kserve/models-web-app/overlays/kubeflow | kubectl apply -f -; do echo "Retrying models-web-app/overlays/kubeflow..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/katib/upstream/installs/katib-with-kubeflow | kubectl apply -f -; do echo "Retrying katib/upstream/installs/katib-with-kubeflow..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/centraldashboard/overlays/oauth2-proxy | kubectl apply -f -; do echo "Retrying centraldashboard/overlays/oauth2-proxy..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) common/istio/kubeflow-istio-resources/base | kubectl apply -f -; do echo "Retrying kubeflow-istio-resources/base..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/pipeline/upstream/env/cert-manager/platform-agnostic-multi-user | kubectl apply -f -; do echo "Retrying pipeline/env/cert-manager/platform-agnostic-multi-user..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/kserve/kserve | kubectl apply --server-side --force-conflicts -f -; do echo "Retrying kserve/kserve... (This one takes several minutes)"; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/kserve/models-web-app/overlays/kubeflow | kubectl apply -f -; do echo "Retrying models-web-app/overlays/kubeflow..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/katib/upstream/installs/katib-with-kubeflow | kubectl apply -f -; do echo "Retrying katib/upstream/installs/katib-with-kubeflow..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/centraldashboard/overlays/oauth2-proxy | kubectl apply -f -; do echo "Retrying centraldashboard/overlays/oauth2-proxy..."; sleep 10; done
 
 	git clone https://github.com/kubeflow/kubeflow.git
 	cp kubeflow-theme/kubeflow-palette.css kubeflow/components/centraldashboard/public/kubeflow-palette.css
@@ -135,21 +135,21 @@ kubeflow: check-dependencies
 	cd kubeflow/components/centraldashboard && docker build -t centraldashboard:dev .
 	kind load docker-image centraldashboard:dev --name=kubeflow
 
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/centraldashboard/overlays/oauth2-proxy | kubectl apply -f -; do echo "Retrying centraldashboard/overlays/oauth2-proxy..."; sleep 10; done
-	cd manifests && mkdir -p apps/centraldashboard/overlays/apps/patches
-	cd manifests && cp ../kubeflow-config/kustomization.yaml apps/centraldashboard/overlays/apps/kustomization.yaml
-	cd manifests && cp ../kubeflow-config/apps/patches/configmap.yaml apps/centraldashboard/overlays/apps/patches/configmap.yaml
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/centraldashboard/overlays/apps | kubectl apply -f -; do echo "Retrying centraldashboard/overlays/apps..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/centraldashboard/overlays/oauth2-proxy | kubectl apply -f -; do echo "Retrying centraldashboard/overlays/oauth2-proxy..."; sleep 10; done
+	cd manifests && mkdir -p applications/centraldashboard/overlays/apps/patches
+	cd manifests && cp ../manifests-config/kustomization.yaml applications/centraldashboard/overlays/apps/kustomization.yaml
+	cd manifests && cp ../manifests-config/apps/patches/configmap.yaml applications/centraldashboard/overlays/apps/patches/configmap.yaml
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/centraldashboard/overlays/apps | kubectl apply -f -; do echo "Retrying centraldashboard/overlays/apps..."; sleep 10; done
 
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/admission-webhook/upstream/overlays/cert-manager | kubectl apply -f -; do echo "Retrying admission-webhook/upstream/overlays/cert-manager..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/jupyter/notebook-controller/upstream/overlays/kubeflow | kubectl apply -f -; do echo "Retrying notebook-controller/upstream/overlays/kubeflow..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/jupyter/jupyter-web-app/upstream/overlays/istio | kubectl apply -f -; do echo "Retrying jupyter-web-app/upstream/overlays/istio..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/pvcviewer-controller/upstream/base | kubectl apply -f -; do echo "Retrying pvcviewer-controller/upstream/base..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/profiles/upstream/overlays/kubeflow | kubectl apply -f -; do echo "Retrying profiles/upstream/overlays/kubeflow..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/volumes-web-app/upstream/overlays/istio | kubectl apply -f -; do echo "Retrying volumes-web-app/upstream/overlays/istio..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/tensorboard/tensorboards-web-app/upstream/overlays/istio | kubectl apply -f -; do echo "Retrying tensorboards-web-app/upstream/overlays/istio..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/tensorboard/tensorboard-controller/upstream/overlays/kubeflow | kubectl apply -f -; do echo "Retrying tensorboard-controller/upstream/overlays/kubeflow..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) apps/training-operator/upstream/overlays/kubeflow | kubectl apply --server-side --force-conflicts -f -; do echo "Retrying training-operator/upstream/overlays/kubeflow..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/admission-webhook/upstream/overlays/cert-manager | kubectl apply -f -; do echo "Retrying admission-webhook/upstream/overlays/cert-manager..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/jupyter/notebook-controller/upstream/overlays/kubeflow | kubectl apply -f -; do echo "Retrying notebook-controller/upstream/overlays/kubeflow..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/jupyter/jupyter-web-app/upstream/overlays/istio | kubectl apply -f -; do echo "Retrying jupyter-web-app/upstream/overlays/istio..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/pvcviewer-controller/upstream/base | kubectl apply -f -; do echo "Retrying pvcviewer-controller/upstream/base..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/profiles/upstream/overlays/kubeflow | kubectl apply -f -; do echo "Retrying profiles/upstream/overlays/kubeflow..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/volumes-web-app/upstream/overlays/istio | kubectl apply -f -; do echo "Retrying volumes-web-app/upstream/overlays/istio..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/tensorboard/tensorboards-web-app/upstream/overlays/istio | kubectl apply -f -; do echo "Retrying tensorboards-web-app/upstream/overlays/istio..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/tensorboard/tensorboard-controller/upstream/overlays/kubeflow | kubectl apply -f -; do echo "Retrying tensorboard-controller/upstream/overlays/kubeflow..."; sleep 10; done
+	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/training-operator/upstream/overlays/kubeflow | kubectl apply --server-side --force-conflicts -f -; do echo "Retrying training-operator/upstream/overlays/kubeflow..."; sleep 10; done
 	cd manifests && while ! $(KUSTOMIZE_BUILD) common/user-namespace/base | kubectl apply -f -; do echo "Retrying user-namespace/base..."; sleep 10; done
 	rm -rf manifests
 	rm -rf kubeflow

@@ -167,3 +167,29 @@ Stay tuned, as we will be releasing easy installation scripts for the following 
          - Refresh the page
 - When you create the kind cluster it sets the env var KUBECONFIG to the temporary kind config. If you find yourself missing your previous kubernetes contexts then use the command `unset KUBECONFIG` to use the default config file typically found here: ~/.kube/config. And if you need to use the kind context again use the command `export KUBECONFIG=/tmp/kubeflow-config;`.
 - If you find want to troubleshoot a faulty installation step look at the makefile to identify which command is failing. Connect to the cluster and attempt to run the command manually. If it succeeds, run the make streamliner command again to continue with the full installation.
+
+## AWS MARKETPLACE INSTRUCTIONS
+# Deploy AI Streamliner Cluster
+
+First ensures a Kind cluster exists by executing the make cluster command, then pull the streamliner image and execute the deployment script.
+
+## Prerequisites
+- Docker installed and running
+- Kind cluster tooling available
+- Kubectl and Kustomize
+- Helm
+
+```
+make cluster
+
+docker run --rm -v $(pwd)/output:/output 905418165254.dkr.ecr.us-east-1.amazonaws.com/aistreamliner:latest && cd output && ./deploy-ai-streamliner.sh
+```
+
+## Windows Users (WSL)
+
+1. Follow the same steps as Linux
+2. If you encounter permission errors during the build process, run:
+   ```bash
+   sudo chmod -R 755 custom-centraldashboard/ kubeflow-source/
+   sudo chown -R $(whoami):$(whoami) custom-centraldashboard/ kubeflow-source/
+3. Then retry deployment command from the output directory: ./deploy-ai-streamliner.sh
