@@ -193,3 +193,31 @@ docker run --rm -v $(pwd)/output:/output 905418165254.dkr.ecr.us-east-1.amazonaw
    sudo chmod -R 755 custom-centraldashboard/ kubeflow-source/
    sudo chown -R $(whoami):$(whoami) custom-centraldashboard/ kubeflow-source/
 3. Then retry deployment command from the output directory: ./deploy-ai-streamliner.sh
+
+## Publishing a new release of AI-Streamliner
+To build and publish a new multi-arch (linux/amd64, linux/arm64) release of AI Streamliner, use the dedicated release.mk file. It logs in to ECR, builds per-arch images, creates a clean multi-arch index tag, and can verify and output digests.
+
+1) Login to ECR
+```bash
+make -f release.mk image-login REGISTRY_ID=709825985650 REGION=us-east-1
+```
+
+2) Build and publish version 1.0.3
+```bash
+make -f release.mk image-release VERSION=1.0.3 REGISTRY_ID=709825985650 REPO=ardent-mc/aistreamliner
+```
+This publishes:
+- Multi-arch tag: 709825985650.dkr.ecr.us-east-1.amazonaws.com/ardent-mc/aistreamliner:1.0.3
+- Per-arch tags: ...:1.0.3-amd64 and ...:1.0.3-arm64
+
+3) Verify index contents
+```bash
+make -f release.mk image-verify VERSION=1.0.3 REGISTRY_ID=709825985650 REPO=ardent-mc/aistreamliner
+```
+
+4) Output per-arch digests (for scanners/Marketplace)
+```bash
+make -f release.mk image-digests VERSION=1.0.3 REGISTRY_ID=709825985650 REPO=ardent-mc/aistreamliner
+```
+
+Note: Security scanners should scan the per-arch image digests (amd64 and arm64). The multi-arch tag is an OCI index that points to those images and is used for distribution.
