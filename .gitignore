@@ -4,3 +4,4 @@
 .venv
 pyproject.toml
 .lakectl.yaml
+/output

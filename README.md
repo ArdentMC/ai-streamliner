@@ -175,4 +175,59 @@ Stay tuned, as we will be releasing easy installation scripts for the following 
          - Find and delete cookies for localhost, particularly `oauth2_proxy_kubeflow`
          - Refresh the page
 - When you create the kind cluster it sets the env var KUBECONFIG to the temporary kind config. If you find yourself missing your previous kubernetes contexts then use the command `unset KUBECONFIG` to use the default config file typically found here: ~/.kube/config. And if you need to use the kind context again use the command `export KUBECONFIG=/tmp/kubeflow-config;`.
+- the /tmp directory might clean up the config file after some time. Use `kind get kubeconfig --name kubeflow > /tmp/kubeflow-config` to recreate it. Bug fix wanted (good first issue).
 - If you find want to troubleshoot a faulty installation step look at the makefile to identify which command is failing. Connect to the cluster and attempt to run the command manually. If it succeeds, run the make streamliner command again to continue with the full installation.
+
+## AWS MARKETPLACE INSTRUCTIONS
+# Deploy AI Streamliner Cluster
+
+First ensures a Kind cluster exists by executing the make cluster command, then pull the streamliner image and execute the deployment script.
+
+## Prerequisites
+- Docker installed and running
+- Kind cluster tooling available
+- Kubectl and Kustomize
+- Helm
+
+```
+make cluster
+
+docker run --rm -v $(pwd)/output:/output 905418165254.dkr.ecr.us-east-1.amazonaws.com/aistreamliner:latest && cd output && ./deploy-ai-streamliner.sh
+```
+
+## Windows Users (WSL)
+
+1. Follow the same steps as Linux
+2. If you encounter permission errors during the build process, run:
+   ```bash
+   sudo chmod -R 755 custom-centraldashboard/ kubeflow-source/
+   sudo chown -R $(whoami):$(whoami) custom-centraldashboard/ kubeflow-source/
+3. Then retry deployment command from the output directory: ./deploy-ai-streamliner.sh
+
+## Publishing a new release of AI-Streamliner
+To build and publish a new multi-arch (linux/amd64, linux/arm64) release of AI Streamliner, use the dedicated release.mk file. It logs in to ECR, builds per-arch images, creates a clean multi-arch index tag, and can verify and output digests.
+
+1) Login to ECR
+```bash
+make -f release.mk image-login REGISTRY_ID=709825985650 REGION=us-east-1
+```
+
+2) Build and publish version 1.0.3
+```bash
+make -f release.mk image-release VERSION=1.0.3 REGISTRY_ID=709825985650 REPO=ardent-mc/aistreamliner
+```
+This publishes:
+- Multi-arch tag: 709825985650.dkr.ecr.us-east-1.amazonaws.com/ardent-mc/aistreamliner:1.0.3
+- Per-arch tags: ...:1.0.3-amd64 and ...:1.0.3-arm64
+
+3) Verify index contents
+```bash
+make -f release.mk image-verify VERSION=1.0.3 REGISTRY_ID=709825985650 REPO=ardent-mc/aistreamliner
+```
+
+4) Output per-arch digests (for scanners/Marketplace)
+```bash
+make -f release.mk image-digests VERSION=1.0.3 REGISTRY_ID=709825985650 REPO=ardent-mc/aistreamliner
+```
+
+Note: Security scanners should scan the per-arch image digests (amd64 and arm64). The multi-arch tag is an OCI index that points to those images and is used for distribution.
