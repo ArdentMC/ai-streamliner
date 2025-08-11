@@ -1,4 +1,7 @@
 /.history
 /manifests
 /kubeflow
+.venv
+pyproject.toml
+.lakectl.yaml
 /output
