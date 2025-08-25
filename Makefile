@@ -49,6 +49,9 @@ else
     KUSTOMIZE_BUILD := kustomize build
 endif
 
+# Logging controls
+LOG_DIR ?= logs
+
 # Check for required dependencies
 .PHONY: check-dependencies
 check-dependencies:
@@ -61,17 +64,17 @@ check-dependencies:
 	@echo "All required dependencies are installed"
 
 cluster: check-dependencies
-	@if ! kind get clusters | grep -q "^kubeflow$$"; then \
-		kind create cluster --name=kubeflow --config=cluster.yml; \
+	@if ! kind get clusters | grep -q "^aistreamliner$$"; then \
+		kind create cluster --name=aistreamliner --config=cluster.yml; \
 		if [ "$(UNAME_S)" = "Darwin" ] || [ "$(UNAME_S)" = "Linux" ]; then \
-			kind get kubeconfig --name kubeflow > /tmp/kubeflow-config; \
-			export KUBECONFIG=/tmp/kubeflow-config; \
+			kind get kubeconfig --name aistreamliner > /tmp/aistreamliner-config; \
+			export KUBECONFIG=/tmp/aistreamliner-config; \
 		else \
-			kind get kubeconfig --name kubeflow > $(shell echo %TEMP%)/kubeflow-config; \
-			export KUBECONFIG=$(shell echo %TEMP%)/kubeflow-config; \
+			kind get kubeconfig --name aistreamliner > $(shell echo %TEMP%)/aistreamliner-config; \
+			export KUBECONFIG=$(shell echo %TEMP%)/aistreamliner-config; \
 		fi; \
 	else \
-		echo "Cluster 'kubeflow' already exists"; \
+		echo "Cluster 'aistreamliner' already exists"; \
 	fi
 	@if ! kubectl get secret regcred >/dev/null 2>&1; then \
 		docker login; \
@@ -83,76 +86,15 @@ cluster: check-dependencies
 	fi
 
 destroy-cluster:
-	kind delete cluster --name=kubeflow
+	kind delete cluster --name=aistreamliner
 
 .PHONY: kubeflow
 kubeflow: check-dependencies
-	rm -rf manifests
-	rm -rf kubeflow
-	git clone https://github.com/kubeflow/manifests.git
-	cd manifests && git fetch origin && git checkout -b v1.10-branch origin/v1.10-branch
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/cert-manager/base | kubectl apply -f -; do echo "Retrying cert-manager/base..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/cert-manager/kubeflow-issuer/base | kubectl apply -f -; do echo "Retrying cert-manager/kubeflow-issuer/base..."; sleep 10; done
-	cd manifests && echo "Waiting for cert-manager to be ready ..."
-	cd manifests && kubectl wait --for=condition=Ready pod -l 'app in (cert-manager,webhook)' --timeout=180s -n cert-manager
-	cd manifests && kubectl wait --for=jsonpath='{.subsets[0].addresses[0].targetRef.kind}'=Pod endpoints -l 'app in (cert-manager,webhook)' --timeout=180s -n cert-manager
-	cd manifests && echo "Installing Istio configured with external authorization..."
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/istio/istio-crds/base | kubectl apply -f -; do echo "Retrying istio-crds/base..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/istio/istio-namespace/base | kubectl apply -f -; do echo "Retrying istio-namespace/base..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/istio/istio-install/overlays/oauth2-proxy | kubectl apply -f -; do echo "Retrying istio-install/overlays/oauth2-proxy..."; sleep 10; done
-	cd manifests && echo "Waiting for all Istio Pods to become ready..."
-	cd manifests && kubectl wait --for=condition=Ready pods --all -n istio-system --timeout=300s
-	cd manifests && echo "Installing oauth2-proxy..."
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/oauth2-proxy/overlays/m2m-dex-only/ | kubectl apply -f -; do echo "Retrying oauth2-proxy/overlays/m2m-dex-only..."; sleep 10; done
-	cd manifests && kubectl wait --for=condition=Ready pod -l 'app.kubernetes.io/name=oauth2-proxy' --timeout=180s -n oauth2-proxy
-	cd manifests && echo "Installing Dex..."
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/dex/overlays/oauth2-proxy | kubectl apply -f -; do echo "Retrying dex/overlays/oauth2-proxy..."; sleep 10; done
-	cd manifests && kubectl wait --for=condition=Ready pods --all --timeout=180s -n auth
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/knative/knative-serving/overlays/gateways | kubectl apply -f -; do echo "Retrying knative-serving/overlays/gateways..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/istio/cluster-local-gateway/base | kubectl apply -f -; do echo "Retrying cluster-local-gateway/base..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/knative/knative-eventing/base | kubectl apply -f -; do echo "Retrying knative-eventing/base..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/kubeflow-namespace/base | kubectl apply -f -; do echo "Retrying kubeflow-namespace/base..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/networkpolicies/base | kubectl apply -f -; do echo "Retrying networkpolicies/base..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/kubeflow-roles/base | kubectl apply -f -; do echo "Retrying kubeflow-roles/base..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/istio/kubeflow-istio-resources/base | kubectl apply -f -; do echo "Retrying kubeflow-istio-resources/base..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/pipeline/upstream/env/cert-manager/platform-agnostic-multi-user | kubectl apply -f -; do echo "Retrying pipeline/env/cert-manager/platform-agnostic-multi-user..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/kserve/kserve | kubectl apply --server-side --force-conflicts -f -; do echo "Retrying kserve/kserve... (This one takes several minutes)"; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/kserve/models-web-app/overlays/kubeflow | kubectl apply -f -; do echo "Retrying models-web-app/overlays/kubeflow..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/katib/upstream/installs/katib-with-kubeflow | kubectl apply -f -; do echo "Retrying katib/upstream/installs/katib-with-kubeflow..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/centraldashboard/overlays/oauth2-proxy | kubectl apply -f -; do echo "Retrying centraldashboard/overlays/oauth2-proxy..."; sleep 10; done
-
-	git clone https://github.com/kubeflow/kubeflow.git
-	cp kubeflow-theme/kubeflow-palette.css kubeflow/components/centraldashboard/public/kubeflow-palette.css
-	cp kubeflow-theme/logo.svg kubeflow/components/centraldashboard/public/assets/logo.svg
-	cp kubeflow-theme/favicon.ico kubeflow/components/centraldashboard/public/assets/favicon.ico
-	cd kubeflow/components/centraldashboard && find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec $(SED_INPLACE) 's/007dfc/fc0000/g' {} \;
-	cd kubeflow/components/centraldashboard && find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec $(SED_INPLACE) 's/003c75/750000/g' {} \;
-	cd kubeflow/components/centraldashboard && find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec $(SED_INPLACE) 's/2196f3/f32121/g' {} \;
-	cd kubeflow/components/centraldashboard && find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec $(SED_INPLACE) 's/0a3b71/3b0a0a/g' {} \;
-	cd kubeflow/components/centraldashboard && $(SED_INPLACE) 's/<title>Kubeflow Central Dashboard<\/title>/<title>AI Streamliner<\/title>/' public/index.html
-	cd kubeflow/components/centraldashboard && $(SED_INPLACE) 's|https://github.com/kubeflow/kubeflow|https://github.com/ArdentMC/ai-streamliner|g' public/components/main-page.pug
-	cd kubeflow/components/centraldashboard && $(SED_INPLACE) 's|https://www.kubeflow.org/docs/about/kubeflow/|https://github.com/ArdentMC/ai-streamliner?tab=readme-ov-file#ai-streamliner|g' public/components/main-page.pug
-	cd kubeflow/components/centraldashboard && docker build -t centraldashboard:dev .
-	kind load docker-image centraldashboard:dev --name=kubeflow
-
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/centraldashboard/overlays/oauth2-proxy | kubectl apply -f -; do echo "Retrying centraldashboard/overlays/oauth2-proxy..."; sleep 10; done
-	cd manifests && mkdir -p applications/centraldashboard/overlays/apps/patches
-	cd manifests && cp ../manifests-config/kustomization.yaml applications/centraldashboard/overlays/apps/kustomization.yaml
-	cd manifests && cp ../manifests-config/apps/patches/configmap.yaml applications/centraldashboard/overlays/apps/patches/configmap.yaml
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/centraldashboard/overlays/apps | kubectl apply -f -; do echo "Retrying centraldashboard/overlays/apps..."; sleep 10; done
-
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/admission-webhook/upstream/overlays/cert-manager | kubectl apply -f -; do echo "Retrying admission-webhook/upstream/overlays/cert-manager..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/jupyter/notebook-controller/upstream/overlays/kubeflow | kubectl apply -f -; do echo "Retrying notebook-controller/upstream/overlays/kubeflow..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/jupyter/jupyter-web-app/upstream/overlays/istio | kubectl apply -f -; do echo "Retrying jupyter-web-app/upstream/overlays/istio..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/pvcviewer-controller/upstream/base | kubectl apply -f -; do echo "Retrying pvcviewer-controller/upstream/base..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/profiles/upstream/overlays/kubeflow | kubectl apply -f -; do echo "Retrying profiles/upstream/overlays/kubeflow..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/volumes-web-app/upstream/overlays/istio | kubectl apply -f -; do echo "Retrying volumes-web-app/upstream/overlays/istio..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/tensorboard/tensorboards-web-app/upstream/overlays/istio | kubectl apply -f -; do echo "Retrying tensorboards-web-app/upstream/overlays/istio..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/tensorboard/tensorboard-controller/upstream/overlays/kubeflow | kubectl apply -f -; do echo "Retrying tensorboard-controller/upstream/overlays/kubeflow..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) applications/training-operator/upstream/overlays/kubeflow | kubectl apply --server-side --force-conflicts -f -; do echo "Retrying training-operator/upstream/overlays/kubeflow..."; sleep 10; done
-	cd manifests && while ! $(KUSTOMIZE_BUILD) common/user-namespace/base | kubectl apply -f -; do echo "Retrying user-namespace/base..."; sleep 10; done
-	rm -rf manifests
-	rm -rf kubeflow
+	echo "Starting Kubeflow install (quiet). Detailed logs will be written to $(LOG_DIR)."; \
+	mkdir -p $(LOG_DIR); \
+	LOG_FILE=$(LOG_DIR)/kubeflow-$$(/bin/date +%Y%m%d-%H%M%S).log; \
+	/bin/bash scripts/install_kubeflow_quiet.sh "$$LOG_FILE" || { echo "Kubeflow installation failed. See $$LOG_FILE"; exit 1; }; \
+	echo "Kubeflow installation complete. Detailed logs at $$LOG_FILE"; \
 
 .PHONY: access-kubeflow
 access-kubeflow: check-dependencies
@@ -204,7 +146,7 @@ access-mlflow: check-dependencies
 .PHONY: aim
 aim: check-dependencies
 	docker pull aimstack/aim:3.29.1
-	kind load docker-image aimstack/aim:3.29.1 --name=kubeflow
+	kind load docker-image aimstack/aim:3.29.1 --name=aistreamliner
 	@if ! kubectl get service streamliner-aimstack >/dev/null 2>&1; then \
 		kubectl apply -f aimstack/service.yml; \
 	else \
