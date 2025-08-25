@@ -43,8 +43,8 @@ The project contains several scripts:
 3. Ignore any errors or outputs in the terminal. If installation doesn't complete in 15 minutes, try again. The installation will either succeed or fail no intervention is necessary while installing.
 4. To monitor deployment in a new terminal:
    ```powershell
-   $env:KUBECONFIG="$env:TEMP\kubeflow-config"
-   kubectl config use-context kind-kubeflow
+   $env:KUBECONFIG="$env:TEMP\aistreamliner-config"
+   kubectl config use-context kind-aistreamliner
    k9s
    ```
 5. To access all AI-Streamliner tools:
@@ -66,8 +66,8 @@ The project contains several scripts:
 
 4. To monitor deployment in a new terminal (make sure to set the context in other terminals before running make commands ):
    ```bash
-   export KUBECONFIG=/tmp/kubeflow-config;
-   kubectl config use-context kind-kubeflow
+   export KUBECONFIG=/tmp/aistreamliner-config;
+   kubectl config use-context kind-aistreamliner
    k9s
    ```
 5. To access all AI-Streamliner tools:
@@ -165,8 +165,8 @@ Stay tuned, as we will be releasing easy installation scripts for the following 
          - Go to the Application/Storage tab
          - Find and delete cookies for localhost, particularly `oauth2_proxy_kubeflow`
          - Refresh the page
-- When you create the kind cluster it sets the env var KUBECONFIG to the temporary kind config. If you find yourself missing your previous kubernetes contexts then use the command `unset KUBECONFIG` to use the default config file typically found here: ~/.kube/config. And if you need to use the kind context again use the command `export KUBECONFIG=/tmp/kubeflow-config;`.
-- the /tmp directory might clean up the config file after some time. Use `kind get kubeconfig --name kubeflow > /tmp/kubeflow-config` to recreate it. Bug fix wanted (good first issue).
+- When you create the kind cluster it sets the env var KUBECONFIG to the temporary kind config. If you find yourself missing your previous kubernetes contexts then use the command `unset KUBECONFIG` to use the default config file typically found here: ~/.kube/config. And if you need to use the kind context again use the command `export KUBECONFIG=/tmp/aistreamliner-config;`.
+- the /tmp directory might clean up the config file after some time. Use `kind get kubeconfig --name aistreamliner > /tmp/aistreamliner-config` to recreate it. Bug fix wanted (good first issue).
 - If you find want to troubleshoot a faulty installation step look at the makefile to identify which command is failing. Connect to the cluster and attempt to run the command manually. If it succeeds, run the make streamliner command again to continue with the full installation.
 
 ## AWS MARKETPLACE INSTRUCTIONS
