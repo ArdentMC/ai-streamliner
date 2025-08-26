@@ -63,6 +63,22 @@ check-dependencies:
 	@(which helm > /dev/null) || (echo "Error: helm is not installed or not in PATH" && exit 1)
 	@echo "All required dependencies are installed"
 
+# Ensure we're using the correct Kubernetes context
+.PHONY: check-context
+check-context:
+	@echo "Checking Kubernetes context..."
+	@current_context=$$(kubectl config current-context 2>/dev/null || echo "none"); \
+	if [ "$$current_context" != "kind-aistreamliner" ]; then \
+		echo "Warning: Current context is '$$current_context', expected 'kind-aistreamliner'"; \
+		echo "Attempting to switch to kind-aistreamliner context..."; \
+		kubectl config use-context kind-aistreamliner || { \
+			echo "Error: Could not switch to kind-aistreamliner context."; \
+			echo "Make sure the AI Streamliner cluster is running with 'make cluster'"; \
+			exit 1; \
+		}; \
+	fi
+	@echo "✓ Using correct context: $$(kubectl config current-context)"
+
 cluster: check-dependencies
 	@if ! kind get clusters | grep -q "^aistreamliner$$"; then \
 		kind create cluster --name=aistreamliner --config=cluster.yml; \
@@ -89,7 +105,7 @@ destroy-cluster:
 	kind delete cluster --name=aistreamliner
 
 .PHONY: kubeflow
-kubeflow: check-dependencies
+kubeflow: check-dependencies check-context
 	echo "Starting Kubeflow install (quiet). Detailed logs will be written to $(LOG_DIR)."; \
 	mkdir -p $(LOG_DIR); \
 	LOG_FILE=$(LOG_DIR)/kubeflow-$$(/bin/date +%Y%m%d-%H%M%S).log; \
@@ -97,7 +113,7 @@ kubeflow: check-dependencies
 	echo "Kubeflow installation complete. Detailed logs at $$LOG_FILE"; \
 
 .PHONY: access-kubeflow
-access-kubeflow: check-dependencies
+access-kubeflow: check-dependencies check-context
 	@echo "Checking if Kubeflow is ready..."
 	@kubectl get svc/istio-ingressgateway -n istio-system >/dev/null 2>&1 || { echo "Error: Kubeflow istio-ingressgateway not found. Is Kubeflow installed?"; exit 1; }
 	@kubectl wait --for=condition=available --timeout=60s deployment/istio-ingressgateway -n istio-system || echo "Warning: istio-ingressgateway not fully ready, but continuing..."
@@ -109,7 +125,7 @@ access-kubeflow: check-dependencies
 	wait
 
 .PHONY: mlflow
-mlflow: check-dependencies
+mlflow: check-dependencies check-context
 	@if ! kubectl get pv mlflow-pv >/dev/null 2>&1; then \
 		kubectl apply -f mlflow/mlflow-pv-pvc.yml; \
 	else \
@@ -131,7 +147,7 @@ delete-mlflow:
 	kubectl delete -f mlflow/mlflow-pv-pvc.yml
 
 .PHONY: access-mlflow
-access-mlflow: check-dependencies
+access-mlflow: check-dependencies check-context
 	@echo "Checking if MLflow is ready..."
 	@kubectl get svc/streamliner-mlflow -n default >/dev/null 2>&1 || { echo "Error: MLflow service not found. Is MLflow installed?"; exit 1; }
 	@kubectl wait --for=condition=available --timeout=30s deployment/streamliner-mlflow -n default || echo "Warning: MLflow deployment not fully ready, but continuing..."
@@ -144,7 +160,7 @@ access-mlflow: check-dependencies
 
 
 .PHONY: aim
-aim: check-dependencies
+aim: check-dependencies check-context
 	docker pull aimstack/aim:3.29.1
 	kind load docker-image aimstack/aim:3.29.1 --name=aistreamliner
 	@if ! kubectl get service streamliner-aimstack >/dev/null 2>&1; then \
@@ -164,7 +180,7 @@ delete-aim:
 	kubectl delete -f aimstack/service.yml
 
 .PHONY: access-aim
-access-aim: check-dependencies
+access-aim: check-dependencies check-context
 	@echo "Checking if Aim is ready..."
 	@kubectl get svc/streamliner-aimstack -n default >/dev/null 2>&1 || { echo "Error: Aim service not found. Is Aim installed?"; exit 1; }
 	@kubectl wait --for=condition=available --timeout=30s deployment/streamliner-aimstack -n default || echo "Warning: Aim deployment not fully ready, but continuing..."
@@ -176,7 +192,7 @@ access-aim: check-dependencies
 	wait
 
 .PHONY: lakefs
-lakefs: check-dependencies
+lakefs: check-dependencies check-context
 	@if ! helm repo list | grep -q "^lakefs"; then \
 		helm repo add lakefs https://charts.lakefs.io; \
 	fi
@@ -192,7 +208,7 @@ delete-lakefs:
 	helm uninstall streamliner-lakefs
 
 .PHONY: access-lakefs
-access-lakefs: check-dependencies
+access-lakefs: check-dependencies check-context
 	@echo "Checking if LakeFS is ready..."
 	@kubectl get svc/streamliner-lakefs -n default >/dev/null 2>&1 || { echo "Error: LakeFS service not found. Is LakeFS installed?"; exit 1; }
 	@kubectl wait --for=condition=available --timeout=30s deployment/streamliner-lakefs -n default || echo "Warning: LakeFS deployment not fully ready, but continuing..."
@@ -204,7 +220,7 @@ access-lakefs: check-dependencies
 	wait
 
 .PHONY: access
-access: check-dependencies
+access: check-dependencies check-context
 	@echo "Checking if all services are ready before starting port-forwarding..."
 	
 	@echo "Checking Kubeflow (istio-ingressgateway)..."
@@ -252,6 +268,6 @@ stop-lingering-port-forward:
 	fi
 
 .PHONY: jupyter-notebook
-jupyter-notebook:
+jupyter-notebook: check-dependencies check-context
 	@echo "Starting Jupyter Notebook..."
 	kubectl apply -f notebook.yaml

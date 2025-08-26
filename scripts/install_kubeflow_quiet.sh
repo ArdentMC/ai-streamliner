@@ -3,6 +3,18 @@
 # Usage: install_kubeflow_quiet.sh /absolute/or/relative/path/to/logfile.log
 set -euo pipefail
 
+# Ensure we're using the correct Kubernetes context
+echo "Setting Kubernetes context to kind-aistreamliner..."
+kubectl config use-context kind-aistreamliner || {
+    echo "Error: Failed to set context to kind-aistreamliner. Is the cluster running?"
+    echo "Run 'make cluster' first to create the AI Streamliner cluster."
+    exit 1
+}
+
+# Display current context for confirmation
+echo "Current context: $(kubectl config current-context)"
+echo "Current cluster: $(kubectl config view --minify -o jsonpath='{.clusters[0].name}')"
+
 # Normalize log file to an absolute path so cd changes won't break logging
 BASE_DIR="$(pwd -P)"
 LOG_FILE="${1:-logs/kubeflow.log}"
@@ -97,31 +109,56 @@ retry_apply "- Katib" "manifests/applications/katib/upstream/installs/katib-with
 retry_apply "- Central Dashboard (oauth2-proxy overlay)" "manifests/applications/centraldashboard/overlays/oauth2-proxy"
 
 # Customize Central Dashboard branding
-run "Cloning kubeflow/kubeflow for centraldashboard branding..." git clone https://github.com/kubeflow/kubeflow.git && cd kubeflow/ && git checkout -t origin/v1.10-branch
-run "Applying AI Streamliner theme files..." bash -lc 'cp kubeflow-theme/logo.svg kubeflow/components/centraldashboard/public/assets/logo.svg && cp kubeflow-theme/favicon.ico kubeflow/components/centraldashboard/public/assets/favicon.ico'
+run "Cloning kubeflow/kubeflow for centraldashboard branding..." git clone https://github.com/kubeflow/kubeflow.git
+run "Checking out kubeflow v1.10-branch..." bash -lc 'cd kubeflow && git checkout -t origin/v1.10-branch'
 
-# Color replacements and page tweaks (run in current shell so SED_INPLACE array is available)
-apply_color_tweaks() {
-  local dir="kubeflow/components/centraldashboard"
-  if [ ! -d "$dir" ]; then
-    echo "Error: $dir not found" | tee -a "$LOG_FILE"
-    return 1
+# Check if centraldashboard directory exists and find the correct path
+find_centraldashboard_dir() {
+  if [ -d "kubeflow/components/centraldashboard" ]; then
+    echo "kubeflow/components/centraldashboard"
+  elif [ -d "kubeflow/components/central-dashboard" ]; then
+    echo "kubeflow/components/central-dashboard"
+  else
+    find kubeflow -type d -name "*centraldashboard*" -o -name "*central-dashboard*" | head -1
   fi
-  (
-    cd "$dir" || exit 1
-    find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec "${SED_INPLACE[@]}" 's/007dfc/fc0000/g' {} \;
-    find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec "${SED_INPLACE[@]}" 's/003c75/750000/g' {} \;
-    find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec "${SED_INPLACE[@]}" 's/2196f3/f32121/g' {} \;
-    find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec "${SED_INPLACE[@]}" 's/0a3b71/3b0a0a/g' {} \;
-    "${SED_INPLACE[@]}" 's/<title>Kubeflow Central Dashboard<\/title>/<title>AI Streamliner<\/title>/' public/index.html
-    "${SED_INPLACE[@]}" 's|https://github.com/kubeflow/kubeflow|https://github.com/ArdentMC/ai-streamliner|g' public/components/main-page.pug
-    "${SED_INPLACE[@]}" 's|https://www.kubeflow.org/docs/about/kubeflow/|https://github.com/ArdentMC/ai-streamliner?tab=readme-ov-file#ai-streamliner|g' public/components/main-page.pug
-  )
 }
-run "Applying color tweaks..." apply_color_tweaks
 
-run "Building centraldashboard image..." bash -lc 'cd kubeflow/components/centraldashboard && docker build -t centraldashboard:dev .'
-run "Loading image into kind..." kind load docker-image centraldashboard:dev --name=aistreamliner
+CENTRALDASHBOARD_DIR=$(find_centraldashboard_dir)
+if [ -z "$CENTRALDASHBOARD_DIR" ]; then
+  echo "Warning: Central Dashboard directory not found in kubeflow repo. Skipping custom branding." | tee -a "$LOG_FILE"
+else
+  echo "Found Central Dashboard at: $CENTRALDASHBOARD_DIR" | tee -a "$LOG_FILE"
+  
+  # Apply theme files if they exist
+  if [ -d "kubeflow-theme" ]; then
+    run "Applying AI Streamliner theme files..." bash -lc "cp kubeflow-theme/logo.svg $CENTRALDASHBOARD_DIR/public/assets/logo.svg 2>/dev/null || echo 'Logo copy failed - continuing'; cp kubeflow-theme/favicon.ico $CENTRALDASHBOARD_DIR/public/assets/favicon.ico 2>/dev/null || echo 'Favicon copy failed - continuing'"
+  else
+    echo "Warning: kubeflow-theme directory not found. Skipping theme files." | tee -a "$LOG_FILE"
+  fi
+
+  # Color replacements and page tweaks (run in current shell so SED_INPLACE array is available)
+  apply_color_tweaks() {
+    local dir="$1"
+    if [ ! -d "$dir" ]; then
+      echo "Warning: $dir not found, skipping color tweaks" | tee -a "$LOG_FILE"
+      return 0
+    fi
+    (
+      cd "$dir" || exit 1
+      find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec "${SED_INPLACE[@]}" 's/007dfc/fc0000/g' {} \; 2>/dev/null || true
+      find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec "${SED_INPLACE[@]}" 's/003c75/750000/g' {} \; 2>/dev/null || true
+      find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec "${SED_INPLACE[@]}" 's/2196f3/f32121/g' {} \; 2>/dev/null || true
+      find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec "${SED_INPLACE[@]}" 's/0a3b71/3b0a0a/g' {} \; 2>/dev/null || true
+      [ -f "public/index.html" ] && "${SED_INPLACE[@]}" 's/<title>Kubeflow Central Dashboard<\/title>/<title>AI Streamliner<\/title>/' public/index.html 2>/dev/null || true
+      [ -f "public/components/main-page.pug" ] && "${SED_INPLACE[@]}" 's|https://github.com/kubeflow/kubeflow|https://github.com/ArdentMC/ai-streamliner|g' public/components/main-page.pug 2>/dev/null || true
+      [ -f "public/components/main-page.pug" ] && "${SED_INPLACE[@]}" 's|https://www.kubeflow.org/docs/about/kubeflow/|https://github.com/ArdentMC/ai-streamliner?tab=readme-ov-file#ai-streamliner|g' public/components/main-page.pug 2>/dev/null || true
+    )
+  }
+  run "Applying color tweaks..." apply_color_tweaks "$CENTRALDASHBOARD_DIR"
+
+  run "Building centraldashboard image..." bash -lc "cd $CENTRALDASHBOARD_DIR && docker build -t centraldashboard:dev . || echo 'Docker build failed - using default centraldashboard'"
+  run "Loading image into kind..." kind load docker-image centraldashboard:dev --name=aistreamliner 2>/dev/null || echo "Image load failed - will use default centraldashboard"
+fi
 
 # Deploy customized dashboard + app overlay patches
 retry_apply "Deploying customized Central Dashboard (oauth2-proxy overlay)..." "manifests/applications/centraldashboard/overlays/oauth2-proxy"

@@ -54,11 +54,16 @@ FROM base AS builder
 COPY . /src/ai-streamliner
 WORKDIR /src/ai-streamliner
 
-# Clone Kubeflow manifests (matching your current approach)
-RUN git clone --depth=1 https://github.com/kubeflow/manifests.git /src/kubeflow-manifests
+# Clone Kubeflow manifests and checkout v1.10-branch
+RUN git clone https://github.com/kubeflow/manifests.git /src/kubeflow-manifests && \
+    cd /src/kubeflow-manifests && \
+    git fetch origin && \
+    git checkout -b v1.10-branch origin/v1.10-branch
 
-# Clone Kubeflow source for custom centraldashboard
-RUN git clone --depth=1 https://github.com/kubeflow/kubeflow.git /src/kubeflow
+# Clone Kubeflow source for custom centraldashboard and checkout v1.10-branch
+RUN git clone https://github.com/kubeflow/kubeflow.git /src/kubeflow && \
+    cd /src/kubeflow && \
+    git checkout -t origin/v1.10-branch
 
 # Apply custom centraldashboard theme and branding
 RUN cp kubeflow-theme/kubeflow-palette.css /src/kubeflow/components/centraldashboard/public/kubeflow-palette.css && \
@@ -69,10 +74,7 @@ RUN cp kubeflow-theme/kubeflow-palette.css /src/kubeflow/components/centraldashb
     find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec sed -i 's/003c75/750000/g' {} + && \
     find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec sed -i 's/2196f3/f32121/g' {} + && \
     find . \( -name '*.js' -o -name '*.ts' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) -exec sed -i 's/0a3b71/3b0a0a/g' {} + && \
-    sed -i 's/<title>Kubeflow Central Dashboard<\/title>/<title>AI Streamliner<\/title>/' public/index.html
-
-# Fix the BUILD_VERSION issue by replacing it with a fixed string
-RUN cd /src/kubeflow/components/centraldashboard && \
+    sed -i 's/<title>Kubeflow Central Dashboard<\/title>/<title>AI Streamliner<\/title>/' public/index.html && \
     sed -i "s/BUILD_VERSION/'ai-streamliner-v1.0'/g" public/components/main-page.js
 
 # Prepare centraldashboard overlays for kustomize
