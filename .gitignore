@@ -3,3 +3,6 @@
 /kubeflow
 .venv
 pyproject.toml
+env*
+lakectl.yaml
+*.code-workspace
