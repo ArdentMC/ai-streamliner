@@ -1,6 +1,19 @@
 # Multi-stage build for AI-Streamliner Control Tower
 FROM ubuntu:22.04 AS base
 
+# Every tool is pinned. An unpinned download makes two builds of the same
+# source produce different images, which cannot be attested to a marketplace
+# scan: the thing that was scanned is not the thing that ships.
+ARG KUBECTL_VERSION=v1.37.3
+ARG KUSTOMIZE_VERSION=v5.8.3
+ARG HELM_VERSION=v3.22.1
+ARG YQ_VERSION=v4.54.3
+
+# buildx sets TARGETARCH per platform (amd64, arm64). The downloads below used
+# to name amd64 outright, so the arm64 image in the multi-arch index was built
+# carrying binaries that cannot execute on it.
+ARG TARGETARCH
+
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV KUBECONFIG=/root/.kube/config
@@ -25,27 +38,48 @@ RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/d
 RUN apt-get update && apt-get install -y docker-ce-cli && rm -rf /var/lib/apt/lists/*
 
 # Install kubectl
-RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+RUN curl -fsSLO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl" \
+    && curl -fsSLO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl.sha256" \
+    && echo "$(cat kubectl.sha256)  kubectl" | sha256sum -c - \
     && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
-    && rm kubectl
+    && rm kubectl kubectl.sha256
 
 # Install kustomize
-RUN curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash \
-    && mv kustomize /usr/local/bin/
+RUN curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_${TARGETARCH}.tar.gz" \
+    | tar -xz -C /usr/local/bin kustomize \
+    && chmod 0755 /usr/local/bin/kustomize
 
-# Install helm
-RUN curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | tee /usr/share/keyrings/helm.gpg > /dev/null \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | tee /etc/apt/sources.list.d/helm-stable-debian.list \
-    && apt-get update && apt-get install -y helm && rm -rf /var/lib/apt/lists/*
+# Install helm from the project's own release tarball.
+#
+# The apt repository at baltocdn.com is no longer usable from any current
+# Ubuntu base: it presents a Let's Encrypt chain rooted in "ISRG Root YR",
+# which is absent from the ca-certificates shipped in both 22.04 and 24.04, so
+# apt cannot verify the index and the build fails with "Unable to locate
+# package helm". The release tarball is also pinnable, which the repo was not.
+RUN cd /tmp \
+    && HELM_TGZ="helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" \
+    && curl -fsSLO "https://get.helm.sh/${HELM_TGZ}" \
+    && curl -fsSLO "https://get.helm.sh/${HELM_TGZ}.sha256sum" \
+    && sha256sum -c "${HELM_TGZ}.sha256sum" \
+    && tar -xzf "${HELM_TGZ}" "linux-${TARGETARCH}/helm" \
+    && install -o root -g root -m 0755 "linux-${TARGETARCH}/helm" /usr/local/bin/helm \
+    && rm -rf "${HELM_TGZ}" "${HELM_TGZ}.sha256sum" "linux-${TARGETARCH}"
 
-# Install kind (for local testing scenarios)
-RUN curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64 \
-    && chmod +x ./kind \
-    && mv ./kind /usr/local/bin/kind
+# kind is deliberately absent.
+#
+# It was pinned at v0.20.0, a build from June 2023 carrying the Go 1.20.4
+# standard library -- six patch releases before the fix for CVE-2023-39325,
+# which is Go's identifier for the HTTP/2 rapid-reset flaw CVE-2023-44487.
+# That one binary accounted for 32 HIGH and CRITICAL findings.
+#
+# Nothing in the shipped image needs it. The deployment script calls kind only
+# behind "command -v kind" guards, and it runs against the operator's own
+# cluster; the Makefile targets that do create a kind cluster run on a
+# developer's machine, not in here.
 
 # Install yq for YAML processing
-RUN wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
-    && chmod +x /usr/local/bin/yq
+RUN curl -fsSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${TARGETARCH}" -o /usr/local/bin/yq \
+    && chmod 0755 /usr/local/bin/yq
 
 # Build stage - prepare deployment artifacts
 FROM base AS builder
@@ -57,8 +91,13 @@ WORKDIR /src/ai-streamliner
 # Clone Kubeflow manifests (matching your current approach)
 RUN git clone --depth=1 https://github.com/kubeflow/manifests.git /src/kubeflow-manifests
 
-# Clone Kubeflow source for custom centraldashboard
-RUN git clone --depth=1 https://github.com/kubeflow/kubeflow.git /src/kubeflow
+# Clone the Central Dashboard source for the custom theme.
+#
+# This used to clone kubeflow/kubeflow, whose master branch no longer holds
+# components/ at all -- the monorepo was split, and what remains there is
+# documentation and a logo. The component moved to kubeflow/dashboard under
+# the same internal path, so only the repository name changes here.
+RUN git clone --depth=1 https://github.com/kubeflow/dashboard.git /src/kubeflow
 
 # Apply custom centraldashboard theme and branding
 RUN cp kubeflow-theme/kubeflow-palette.css /src/kubeflow/components/centraldashboard/public/kubeflow-palette.css && \
@@ -91,8 +130,13 @@ FROM base AS production
 # Copy built artifacts
 COPY --from=builder /src/ai-streamliner /app/ai-streamliner
 COPY --from=builder /src/kubeflow-manifests /app/kubeflow-manifests
-COPY --from=builder /src/kubeflow /app/kubeflow
 COPY --from=builder /tmp/kubeflow-manifests.yaml /app/artifacts/
+
+# Only the themed component, at the path the extract script reads. The whole
+# Kubeflow monorepo used to land here to deliver this one directory, and every
+# lockfile and vendored dependency in the rest of it was surface a scanner had
+# to account for in an image that never ran any of it.
+COPY --from=builder /src/kubeflow/components/centraldashboard /app/kubeflow/components/centraldashboard
 
 # Create required directories
 RUN mkdir -p /app/scripts /app/artifacts /app/logs
