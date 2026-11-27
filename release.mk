@@ -5,6 +5,16 @@
 #   make -f Makefile.ecr image-verify VERSION=1.0.3 REGISTRY_ID=709825985650 REPO=ardent-mc/aistreamliner
 #   make -f Makefile.ecr image-digests VERSION=1.0.3 REGISTRY_ID=709825985650 REPO=ardent-mc/aistreamliner
 
+# Media types are pinned to Docker's rather than left to the builder.
+#
+# With the containerd image store (driver-type io.containerd.snapshotter.v1,
+# now the Docker Desktop default) buildx writes OCI media types for the config,
+# the per-arch manifests and the index. Before that store existed the same
+# commands here produced Docker media types, which is what every release up to
+# 1.0.5 carries. oci-mediatypes=false keeps a release built on a current Docker
+# identical in shape to those, rather than having the shape of the asset depend
+# on which machine cut it.
+
 # ----- Configuration (override via env or CLI) -----
 REGION               ?= us-east-1
 REGISTRY_ID          ?= 000000000000
@@ -32,16 +42,16 @@ image-build-amd64:
 		--platform $(AMD) \
 		$(if $(filter true,$(NO_CACHE)),--no-cache,) \
 		$(if $(filter false,$(PROVENANCE)),--provenance=false,) \
-		-t $(IMAGE):$(VERSION)-amd64 \
-		--push .
+		--output type=image,name=$(IMAGE):$(VERSION)-amd64,push=true,oci-mediatypes=false \
+		.
 
 image-build-arm64:
 	$(DOCKER_BUILDX) \
 		--platform $(ARM) \
 		$(if $(filter true,$(NO_CACHE)),--no-cache,) \
 		$(if $(filter false,$(PROVENANCE)),--provenance=false,) \
-		-t $(IMAGE):$(VERSION)-arm64 \
-		--push .
+		--output type=image,name=$(IMAGE):$(VERSION)-arm64,push=true,oci-mediatypes=false \
+		.
 
 # Create & push multi-arch index that references only amd64 and arm64 images
 image-push-manifest:
